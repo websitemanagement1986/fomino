@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Category | Fomino</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="site-header"></div>
+  <div class="page-header">
+    <div class="container">
+      <nav class="breadcrumb"><a href="index.html">Home</a> › <span id="breadcrumb-cat">Category</span></nav>
+      <h1 id="page-title">Category</h1>
+      <p id="category-desc"></p>
+    </div>
+  </div>
+  <section>
+    <div class="container category-layout">
+      <aside class="category-sidebar" id="category-sidebar"></aside>
+      <div>
+        <div class="sort-bar">
+          <select id="sort-select">
+            <option value="relevance">Sort: Relevance</option>
+            <option value="price-low">Price: Low to High</option>
+            <option value="price-high">Price: High to Low</option>
+            <option value="rating">Rating</option>
+          </select>
+        </div>
+        <div id="category-products" class="product-grid"></div>
+      </div>
+    </div>
+  </section>
+  <div id="site-footer"></div>
+  <script src="js/products.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/categories.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const sidebar = document.getElementById('category-sidebar');
+      if (sidebar) {
+        sidebar.innerHTML = '<h3>Categories</h3>' + CATEGORIES.map(c =>
+          `<a href="category.html?cat=${c.slug}">${c.icon} ${c.name}</a>`
+        ).join('');
+      }
+      initCategoryPage();
+    });
+  </script>
+</body>
+</html>

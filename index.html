@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fomino | Buy Fruits, Vegetables & Groceries Online</title>
+  <meta name="description" content="Order fresh fruits, vegetables and groceries online. Fomino delivers farm-fresh produce to Greater Noida West.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <section class="hero">
+    <div class="container">
+      <h1>Fresh Fruits &amp; Vegetables<br>Delivered to Your Doorstep</h1>
+      <p>Shop farm-fresh groceries from <strong>Fomino Product Hub Pvt Ltd</strong> — COD &amp; online payment accepted</p>
+      <form class="hero-search" onsubmit="event.preventDefault(); window.location.href='categories.html';">
+        <input type="search" placeholder="Search tomatoes, mangoes, rice, milk...">
+        <button type="submit">Shop Now</button>
+      </form>
+      <div class="hero-stats">
+        <div class="stat"><strong>50+</strong><span>Products</span></div>
+        <div class="stat"><strong>8</strong><span>Categories</span></div>
+        <div class="stat"><strong>COD</strong><span>Available</span></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="trust-strip">
+    <div class="container">
+      <span>100% Fresh Produce</span>
+      <span>Cash on Delivery</span>
+      <span>Secure Razorpay Payments</span>
+      <span>Free Delivery above ₹499</span>
+    </div>
+  </div>
+
+  <section>
+    <div class="container">
+      <div class="section-header-row">
+        <h2>Shop by Category</h2>
+        <a href="categories.html" class="view-all">View all →</a>
+      </div>
+      <div id="home-categories" class="category-grid"></div>
+    </div>
+  </section>
+
+  <section style="background:var(--white);">
+    <div class="container">
+      <div class="section-title">
+        <h2>Today's Best Deals</h2>
+        <p>Har Din Sasta — save on everyday essentials</p>
+      </div>
+      <div id="deals-products" class="product-grid"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <div class="section-title">
+        <h2>Shop by Category</h2>
+        <p>Browse top products in each category</p>
+      </div>
+      <div id="category-tabs"></div>
+    </div>
+  </section>
+
+  <section style="background:var(--white);">
+    <div class="container">
+      <div class="section-header-row">
+        <h2>Trending Now</h2>
+        <a href="categories.html" class="view-all">See all →</a>
+      </div>
+      <div id="trending-products"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <div class="section-title"><h2>Frequently Asked Questions</h2></div>
+      <div class="faq-list">
+        <div class="faq-item">
+          <button class="faq-question">Do you deliver to Greater Noida West? <span>+</span></button>
+          <div class="faq-answer">Yes! We deliver across Greater Noida West and nearby areas. Enter your pincode at checkout.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question">Is Cash on Delivery available? <span>+</span></button>
+          <div class="faq-answer">Yes, you can pay cash when your order is delivered. Online payment via Razorpay is also available.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question">What if I receive damaged produce? <span>+</span></button>
+          <div class="faq-answer">Contact us within 24 hours with photos. We offer refunds or replacements for damaged items. See our Refund Policy.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question">Is there a minimum order value? <span>+</span></button>
+          <div class="faq-answer">No minimum order. Free delivery on orders above ₹499.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="site-footer"></div>
+  <script src="js/products.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/categories.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      renderCategoryGrid('home-categories');
+      initDealsSection('deals-products');
+      initCategoryTabs('category-tabs');
+      initTrendingSection('trending-products');
+    });
+  </script>
+</body>
+</html>

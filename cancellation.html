@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cancellation Policy | Fomino</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="site-header"></div>
+  <section class="legal-page"><div class="container" id="legal-content"></div></section>
+  <div id="site-footer"></div>
+  <script src="js/products.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    renderLegalPage('Cancellation Policy', `
+      <p>Last updated: ${new Date().getFullYear()}</p>
+      <p>This Cancellation Policy applies to orders placed on Fomino operated by <strong>Fomino Product Hub Pvt Ltd</strong>.</p>
+      <h2>1. Order Cancellation by Customer</h2>
+      <ul>
+        <li>Orders may be cancelled before dispatch by calling +91 7840819741 or emailing support@fomino.in with your order ID.</li>
+        <li>Once the order is out for delivery, cancellation may not be possible.</li>
+        <li>For online-paid orders cancelled before dispatch, a full refund will be issued within 5–7 business days.</li>
+        <li>For COD orders cancelled before dispatch, no charges apply.</li>
+      </ul>
+      <h2>2. Cancellation by Fomino</h2>
+      <p>We may cancel orders due to stock unavailability, delivery area restrictions or operational issues. You will receive a full refund for prepaid orders.</p>
+      <h2>3. Partial Cancellation</h2>
+      <p>If specific items are unavailable, we may partially fulfil your order and refund the unavailable items, or cancel the entire order at your preference.</p>
+      <h2>4. No-Show / Refused Delivery</h2>
+      <p>If you are unavailable at the delivery address after reasonable attempts, the order may be cancelled. COD orders will not be re-delivered. Prepaid orders may incur a redelivery fee.</p>
+      <h2>5. Contact</h2>
+      <p>Contact Person: Pavan Kumar | +91 7840819741 | support@fomino.in<br>Office no O-1231, Gaur City Centre, Sec-4, Greater Noida West, UP 201318</p>
+    `);
+  </script>
+</body>
+</html>

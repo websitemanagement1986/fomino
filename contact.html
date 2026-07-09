@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us | Fomino</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="site-header"></div>
+  <section class="legal-page">
+    <div class="container" style="max-width:640px;">
+      <h1>Contact Us</h1>
+      <p style="color:var(--text-muted);margin-bottom:24px;">Have a question about your order or our products? Reach out to <strong>Pavan Kumar</strong> at Fomino Product Hub Pvt Ltd.</p>
+      <div class="about-card" style="margin-bottom:32px;">
+        <p><strong>Phone:</strong> <a href="tel:+917840819741">+91 7840819741</a></p>
+        <p><strong>Email:</strong> <a href="mailto:support@fomino.in">support@fomino.in</a></p>
+        <p><strong>Address:</strong> Office no O-1231, Gaur City Centre, Sec-4, Greater Noida West, Gautam Buddha Nagar, UP 201318</p>
+      </div>
+      <form id="contact-form" class="checkout-form" style="padding:24px;">
+        <div id="contact-msg"></div>
+        <div class="form-group"><label for="c-name">Name *</label><input type="text" id="c-name" required></div>
+        <div class="form-group"><label for="c-email">Email *</label><input type="email" id="c-email" required></div>
+        <div class="form-group"><label for="c-phone">Phone</label><input type="tel" id="c-phone"></div>
+        <div class="form-group"><label for="c-message">Message *</label><textarea id="c-message" rows="4" required></textarea></div>
+        <button type="submit" class="btn btn-primary">Send Message</button>
+      </form>
+    </div>
+  </section>
+  <div id="site-footer"></div>
+  <script src="js/products.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    document.getElementById('contact-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('contact-msg');
+      try {
+        const res = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: document.getElementById('c-name').value,
+            email: document.getElementById('c-email').value,
+            phone: document.getElementById('c-phone').value,
+            message: document.getElementById('c-message').value,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        msg.innerHTML = '<p style="color:var(--primary);font-weight:600;">Message sent! We will get back to you soon.</p>';
+        e.target.reset();
+      } catch (err) {
+        msg.innerHTML = `<p style="color:#c62828;">${err.message}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>
