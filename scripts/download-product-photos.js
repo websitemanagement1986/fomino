@@ -1,5 +1,5 @@
 /**
- * Downloads real grocery product photos into assets/products/
+ * Downloads grocery product photos into assets/products/
  * Run: node scripts/download-product-photos.js
  */
 const fs = require('fs');
@@ -12,74 +12,62 @@ fs.mkdirSync(dir, { recursive: true });
 
 const UA = 'FominoBot/1.0 (https://fomino.in; support@fomino.in)';
 
+// Verified URLs (Pexels + Unsplash). Organic variants reuse the same source photo.
 const PHOTOS = {
   'banana-robusta': 'https://images.pexels.com/photos/2872755/pexels-photo-2872755.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
   'mango-alphonso': 'https://images.pexels.com/photos/2089698/pexels-photo-2089698.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'apple-gala': 'https://images.pexels.com/photos/102104/pexels-photo-102104.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'pomegranate': 'https://images.pexels.com/photos/65256/pomegranate-open-cores-fruit-65256.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+  'apple-gala': 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=800&q=80',
+  'pomegranate': 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=800&q=80',
   'orange-imported': 'https://images.pexels.com/photos/161559/background-bitter-breakfast-bright-161559.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
   'watermelon': 'https://images.pexels.com/photos/1313267/pexels-photo-1313267.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'grapes-green': 'https://images.pexels.com/photos/23042/pexels-photo.jpg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'tomato-local': 'https://images.pexels.com/photos/1327838/pexels-photo-1327838.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'onion': 'https://images.pexels.com/photos/144248/onions-vegetables-food-healthy-144248.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'potato': 'https://images.pexels.com/photos/144251/potatoes-vegetables-erdfrucht-bio-144251.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'carrot-orange': 'https://images.pexels.com/photos/143133/pexels-photo-143133.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+  'grapes-green': 'https://images.unsplash.com/photo-1537640538966-79f369143f8f?w=800&q=80',
+
+  'tomato-local': 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=800&q=80',
+  'onion': 'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31?w=800&q=80',
+  'potato': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=800&q=80',
+  'carrot-orange': 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=800&q=80',
   'capsicum-green': 'https://images.pexels.com/photos/594137/pexels-photo-594137.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'cauliflower': 'https://images.pexels.com/photos/1300975/pexels-photo-1300975.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'spinach-palak': 'https://images.pexels.com/photos/2255935/pexels-photo-2255935.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+  'cauliflower': 'https://images.pexels.com/photos/5941391/pexels-photo-5941391.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+  'spinach-palak': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
   'ginger': 'https://images.pexels.com/photos/4198142/pexels-photo-4198142.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+
   'broccoli': 'https://images.pexels.com/photos/47347/broccoli-vegetable-food-healthy-47347.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'blueberry': 'https://images.pexels.com/photos/70862/blueberries-blueberry-fruit-70862.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+  'blueberry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=800&q=80',
   'avocado': 'https://images.pexels.com/photos/5946091/pexels-photo-5946091.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'zucchini': 'https://images.pexels.com/photos/1435904/pexels-photo-1435904.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'lettuce-iceberg': 'https://images.pexels.com/photos/1199590/pexels-photo-1199590.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+  'zucchini': 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=800&q=80',
+  'lettuce-iceberg': 'https://images.pexels.com/photos/992731/pexels-photo-992731.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
   'mushroom-button': 'https://images.pexels.com/photos/1300972/pexels-photo-1300972.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'organic-tomato': 'https://images.pexels.com/photos/1327838/pexels-photo-1327838.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'organic-onion': 'https://images.pexels.com/photos/144248/onions-vegetables-food-healthy-144248.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+
+  'organic-tomato': 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=800&q=80',
+  'organic-onion': 'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31?w=800&q=80',
   'organic-ginger': 'https://images.pexels.com/photos/4198142/pexels-photo-4198142.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'organic-carrot': 'https://images.pexels.com/photos/143133/pexels-photo-143133.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'organic-spinach': 'https://images.pexels.com/photos/2255935/pexels-photo-2255935.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'basmati-rice': 'https://images.pexels.com/photos/4110257/pexels-photo-4110257.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'toor-dal': 'https://images.pexels.com/photos/4110257/pexels-photo-4110257.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'atta-whole-wheat': 'https://images.pexels.com/photos/4110257/pexels-photo-4110257.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+  'organic-carrot': 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=800&q=80',
+  'organic-spinach': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
+
+  'basmati-rice': 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800&q=80',
+  'toor-dal': 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=800&q=80',
+  'atta-whole-wheat': 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=800&q=80',
   'sunflower-oil': 'https://images.pexels.com/photos/33783/olive-oil-salad-dressing-cooking-olive.jpg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'sugar': 'https://images.pexels.com/photos/65882/spoon-sugar-bean-coffee-65882.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'turmeric-powder': 'https://images.pexels.com/photos/143133/pexels-photo-143133.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'milk-toned': 'https://images.pexels.com/photos/236010/pexels-photo-236010.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'curd': 'https://images.pexels.com/photos/236010/pexels-photo-236010.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'paneer': 'https://images.pexels.com/photos/4109111/pexels-photo-4109111.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+  'sugar': 'https://images.unsplash.com/photo-1505253758473-96b7015fcd40?w=800&q=80',
+  'turmeric-powder': 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=800&q=80',
+
+  'milk-toned': 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=800&q=80',
+  'curd': 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=800&q=80',
+  'paneer': 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=800&q=80',
   'brown-bread': 'https://images.pexels.com/photos/1775043/pexels-photo-1775043.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'butter': 'https://images.pexels.com/photos/4109111/pexels-photo-4109111.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'orange-juice': 'https://images.pexels.com/photos/143133/pexels-photo-143133.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'tea-leaves': 'https://images.pexels.com/photos/230325/pexels-photo-230325.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+  'butter': 'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=800&q=80',
+
+  'orange-juice': 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=800&q=80',
+  'tea-leaves': 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=800&q=80',
   'coffee-instant': 'https://images.pexels.com/photos/302899/pexels-photo-302899.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
   'coconut-water': 'https://images.pexels.com/photos/333868/pexels-photo-333868.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'green-tea': 'https://images.pexels.com/photos/230325/pexels-photo-230325.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'marie-biscuits': 'https://images.pexels.com/photos/230325/pexels-photo-230325.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'namkeen-mix': 'https://images.pexels.com/photos/230325/pexels-photo-230325.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'potato-chips': 'https://images.pexels.com/photos/230325/pexels-photo-230325.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'cookies-assorted': 'https://images.pexels.com/photos/230325/pexels-photo-230325.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'peanuts-roasted': 'https://images.pexels.com/photos/4110257/pexels-photo-4110257.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-};
+  'green-tea': 'https://images.unsplash.com/photo-1556881286-fc6915169721?w=800&q=80',
 
-const FALLBACK = {
-  potato: 'onion',
-  'toor-dal': 'basmati-rice',
-  'atta-whole-wheat': 'basmati-rice',
-  'turmeric-powder': 'carrot-orange',
-  curd: 'milk-toned',
-  butter: 'paneer',
-  'orange-juice': 'orange-imported',
-  'green-tea': 'tea-leaves',
-  'marie-biscuits': 'cookies-assorted',
-  'namkeen-mix': 'cookies-assorted',
-  'potato-chips': 'cookies-assorted',
-  'peanuts-roasted': 'namkeen-mix',
-  'organic-tomato': 'tomato-local',
-  'organic-onion': 'onion',
-  'organic-ginger': 'ginger',
-  'organic-carrot': 'carrot-orange',
-  'organic-spinach': 'spinach-palak',
+  'marie-biscuits': 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=800&q=80',
+  'namkeen-mix': 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=800&q=80',
+  'potato-chips': 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=800&q=80',
+  'cookies-assorted': 'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=800&q=80',
+  'peanuts-roasted': 'https://images.unsplash.com/photo-1550254478-ead40cc54513?w=800&q=80',
 };
 
 function download(url, redirects = 0) {
@@ -109,27 +97,13 @@ function download(url, redirects = 0) {
 }
 
 async function main() {
-  const productIds = [
-    'banana-robusta','mango-alphonso','apple-gala','pomegranate','orange-imported','watermelon','grapes-green',
-    'tomato-local','onion','potato','carrot-orange','capsicum-green','cauliflower','spinach-palak','ginger',
-    'broccoli','blueberry','avocado','zucchini','lettuce-iceberg','mushroom-button',
-    'organic-tomato','organic-onion','organic-ginger','organic-carrot','organic-spinach',
-    'basmati-rice','toor-dal','atta-whole-wheat','sunflower-oil','sugar','turmeric-powder',
-    'milk-toned','curd','paneer','brown-bread','butter',
-    'orange-juice','tea-leaves','coffee-instant','coconut-water','green-tea',
-    'marie-biscuits','namkeen-mix','potato-chips','cookies-assorted','peanuts-roasted',
-  ];
+  const productIds = Object.keys(PHOTOS);
   let ok = 0;
   let fail = 0;
 
   for (const id of productIds) {
     const url = PHOTOS[id];
     const out = path.join(dir, `${id}.jpg`);
-    if (!url) {
-      console.log(`SKIP ${id} (no URL)`);
-      fail++;
-      continue;
-    }
     try {
       process.stdout.write(`Downloading ${id}... `);
       const buf = await download(url);
@@ -139,18 +113,11 @@ async function main() {
       ok++;
     } catch (err) {
       console.log(`FAIL: ${err.message}`);
-      const fb = FALLBACK[id];
-      const fbPath = path.join(dir, `${fb}.jpg`);
-      if (fb && fs.existsSync(fbPath)) {
-        fs.copyFileSync(fbPath, out);
-        console.log(`  → copied from ${fb}`);
-        ok++;
-      } else {
-        fail++;
-      }
+      fail++;
     }
   }
   console.log(`\nDone: ${ok} images, ${fail} missing`);
+  if (fail > 0) process.exit(1);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
