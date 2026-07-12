@@ -34,7 +34,7 @@ const PHOTOS = {
   'broccoli': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Broccoli_and_cross_section_edit.jpg/960px-Broccoli_and_cross_section_edit.jpg',
   'blueberry': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Blueberries-In-Pack.jpg/960px-Blueberries-In-Pack.jpg',
   'avocado': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Avocado11.jpg/960px-Avocado11.jpg',
-  'zucchini': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Calabac%C3%ADn%2C_M%C3%BAnich%2C_Alemania%2C_2013-03-30%2C_DD_01.JPG/960px-Calabac%C3%ADn%2C_M%C3%BAnich%2C_Alemania%2C_2013-03-30%2C_DD_01.JPG',
+  'zucchini': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Zucchini_in_basket_2021_G1.jpg/960px-Zucchini_in_basket_2021_G1.jpg',
   'lettuce-iceberg': 'https://upload.wikimedia.org/wikipedia/commons/4/40/Lettuce_iceberg_variety.jpeg',
   'mushroom-button': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/2016-01_Agaricus_bisporus_01.jpg/960px-2016-01_Agaricus_bisporus_01.jpg',
 
@@ -51,7 +51,7 @@ const PHOTOS = {
   'sugar': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Sugar_2xmacro.jpg/960px-Sugar_2xmacro.jpg',
   'turmeric-powder': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Turmeric_Powder_Spelled_Out.jpg/960px-Turmeric_Powder_Spelled_Out.jpg',
 
-  'milk-toned': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Bowl_milk_glass.jpg/960px-Bowl_milk_glass.jpg',
+  'milk-toned': 'https://upload.wikimedia.org/wikipedia/commons/e/e7/Glass_milk_bottles.jpg',
   'curd': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Joghurt.jpg/960px-Joghurt.jpg',
   'paneer': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Panir_Paneer_Indian_cheese_fresh.jpg/960px-Panir_Paneer_Indian_cheese_fresh.jpg',
   'brown-bread': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Vegan_Nine_Grain_Whole_Wheat_Bread.jpg/960px-Vegan_Nine_Grain_Whole_Wheat_Bread.jpg',
@@ -69,6 +69,15 @@ const PHOTOS = {
   'cookies-assorted': 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Koekjestrommel_open.jpg',
   'peanuts-roasted': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Roasted_peanuts_2.jpg/960px-Roasted_peanuts_2.jpg',
 };
+
+function isValidImage(buf) {
+  if (!buf || buf.length < 3000) return false;
+  const head = buf.slice(0, 32).toString('utf8');
+  if (head.includes('<!DOCTYPE') || head.includes('<html')) return false;
+  const isJpeg = buf[0] === 0xff && buf[1] === 0xd8;
+  const isPng = buf[0] === 0x89 && buf[1] === 0x50;
+  return isJpeg || isPng;
+}
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -126,7 +135,7 @@ async function main() {
           await sleep(wait);
         }
       }
-      if (buf.length < 3000) throw new Error('too small');
+      if (!isValidImage(buf)) throw new Error('not a valid image');
       fs.writeFileSync(out, buf);
       console.log(`OK (${(buf.length / 1024).toFixed(0)} KB)`);
       ok++;
@@ -136,6 +145,28 @@ async function main() {
     }
     await sleep(2000);
   }
+
+  const catDir = path.join(__dirname, '..', 'assets', 'categories');
+  fs.mkdirSync(catDir, { recursive: true });
+  const categorySources = {
+    'fresh-fruits': 'mango-alphonso',
+    'fresh-vegetables': 'tomato-local',
+    exotic: 'broccoli',
+    organic: 'organic-spinach',
+    staples: 'basmati-rice',
+    dairy: 'milk-toned',
+    beverages: 'orange-juice',
+    snacks: 'namkeen-mix',
+  };
+  for (const [slug, productId] of Object.entries(categorySources)) {
+    const src = path.join(dir, `${productId}.jpg`);
+    const dst = path.join(catDir, `${slug}.jpg`);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, dst);
+      console.log(`Category ${slug} ← ${productId}`);
+    }
+  }
+
   console.log(`\nDone: ${ok} images, ${fail} missing`);
   if (fail > 0) process.exit(1);
 }
