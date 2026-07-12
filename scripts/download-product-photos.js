@@ -51,7 +51,7 @@ const PHOTOS = {
   'sugar': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Sugar_2xmacro.jpg/960px-Sugar_2xmacro.jpg',
   'turmeric-powder': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Turmeric_Powder_Spelled_Out.jpg/960px-Turmeric_Powder_Spelled_Out.jpg',
 
-  'milk-toned': 'https://upload.wikimedia.org/wikipedia/commons/e/e7/Glass_milk_bottles.jpg',
+  'milk-toned': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Glass_of_milk.jpg/960px-Glass_of_milk.jpg',
   'curd': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Joghurt.jpg/960px-Joghurt.jpg',
   'paneer': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Panir_Paneer_Indian_cheese_fresh.jpg/960px-Panir_Paneer_Indian_cheese_fresh.jpg',
   'brown-bread': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Vegan_Nine_Grain_Whole_Wheat_Bread.jpg/960px-Vegan_Nine_Grain_Whole_Wheat_Bread.jpg',
