@@ -1,5 +1,5 @@
 /**
- * Downloads grocery product photos into assets/products/
+ * Downloads grocery product photos from Wikimedia Commons into assets/products/
  * Run: node scripts/download-product-photos.js
  */
 const fs = require('fs');
@@ -12,69 +12,77 @@ fs.mkdirSync(dir, { recursive: true });
 
 const UA = 'FominoBot/1.0 (https://fomino.in; support@fomino.in)';
 
-// Verified URLs (Pexels + Unsplash). Organic variants reuse the same source photo.
+// Wikimedia Commons — stable, correctly labelled food photos
 const PHOTOS = {
-  'banana-robusta': 'https://images.pexels.com/photos/2872755/pexels-photo-2872755.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'mango-alphonso': 'https://images.pexels.com/photos/2089698/pexels-photo-2089698.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'apple-gala': 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=800&q=80',
-  'pomegranate': 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=800&q=80',
-  'orange-imported': 'https://images.pexels.com/photos/161559/background-bitter-breakfast-bright-161559.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'watermelon': 'https://images.pexels.com/photos/1313267/pexels-photo-1313267.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'grapes-green': 'https://images.unsplash.com/photo-1537640538966-79f369143f8f?w=800&q=80',
+  'banana-robusta': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Cavendish_banana_from_Maracaibo.jpg/960px-Cavendish_banana_from_Maracaibo.jpg',
+  'mango-alphonso': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Mango_and_cross_sections.jpg/960px-Mango_and_cross_sections.jpg',
+  'apple-gala': 'https://upload.wikimedia.org/wikipedia/commons/a/a0/Gala_Apples_-_Flickr_-_The_Marmot.jpg',
+  'pomegranate': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Pomegranate02_edit.jpg/960px-Pomegranate02_edit.jpg',
+  'orange-imported': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Ambersweet_oranges.jpg/960px-Ambersweet_oranges.jpg',
+  'watermelon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Taiwan_2009_Tainan_City_Organic_Farm_Watermelon_FRD_7962.jpg/960px-Taiwan_2009_Tainan_City_Organic_Farm_Watermelon_FRD_7962.jpg',
+  'grapes-green': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Green_Grape_3.jpg/960px-Green_Grape_3.jpg',
 
-  'tomato-local': 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=800&q=80',
-  'onion': 'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31?w=800&q=80',
-  'potato': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=800&q=80',
-  'carrot-orange': 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=800&q=80',
-  'capsicum-green': 'https://images.pexels.com/photos/594137/pexels-photo-594137.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'cauliflower': 'https://images.pexels.com/photos/5941391/pexels-photo-5941391.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'spinach-palak': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
-  'ginger': 'https://images.pexels.com/photos/4198142/pexels-photo-4198142.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+  'tomato-local': 'https://upload.wikimedia.org/wikipedia/commons/d/d2/Tomatoes_plain_and_sliced.jpg',
+  'onion': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Onions_3.jpg/960px-Onions_3.jpg',
+  'potato': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Potatoes%2C_Wirral_flower_and_vegetable_show_-_DSC08219.JPG/960px-Potatoes%2C_Wirral_flower_and_vegetable_show_-_DSC08219.JPG',
+  'carrot-orange': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Carrots_of_many_colors.jpg/960px-Carrots_of_many_colors.jpg',
+  'capsicum-green': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Green_capsicum%2C_sweet_bell_pepper.jpg/960px-Green_capsicum%2C_sweet_bell_pepper.jpg',
+  'cauliflower': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Chou-fleur_02.jpg/960px-Chou-fleur_02.jpg',
+  'spinach-palak': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Spinach_leaves.jpg/960px-Spinach_leaves.jpg',
+  'ginger': 'https://upload.wikimedia.org/wikipedia/commons/c/c1/Ginger_Plant_vs.jpg',
 
-  'broccoli': 'https://images.pexels.com/photos/47347/broccoli-vegetable-food-healthy-47347.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'blueberry': 'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=800&q=80',
-  'avocado': 'https://images.pexels.com/photos/5946091/pexels-photo-5946091.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'zucchini': 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=800&q=80',
-  'lettuce-iceberg': 'https://images.pexels.com/photos/992731/pexels-photo-992731.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'mushroom-button': 'https://images.pexels.com/photos/1300972/pexels-photo-1300972.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
+  'broccoli': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Broccoli_and_cross_section_edit.jpg/960px-Broccoli_and_cross_section_edit.jpg',
+  'blueberry': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Blueberries-In-Pack.jpg/960px-Blueberries-In-Pack.jpg',
+  'avocado': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Avocado11.jpg/960px-Avocado11.jpg',
+  'zucchini': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Calabac%C3%ADn%2C_M%C3%BAnich%2C_Alemania%2C_2013-03-30%2C_DD_01.JPG/960px-Calabac%C3%ADn%2C_M%C3%BAnich%2C_Alemania%2C_2013-03-30%2C_DD_01.JPG',
+  'lettuce-iceberg': 'https://upload.wikimedia.org/wikipedia/commons/4/40/Lettuce_iceberg_variety.jpeg',
+  'mushroom-button': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/2016-01_Agaricus_bisporus_01.jpg/960px-2016-01_Agaricus_bisporus_01.jpg',
 
-  'organic-tomato': 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=800&q=80',
-  'organic-onion': 'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31?w=800&q=80',
-  'organic-ginger': 'https://images.pexels.com/photos/4198142/pexels-photo-4198142.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'organic-carrot': 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=800&q=80',
-  'organic-spinach': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
+  'organic-tomato': 'https://upload.wikimedia.org/wikipedia/commons/d/d2/Tomatoes_plain_and_sliced.jpg',
+  'organic-onion': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Onions_3.jpg/960px-Onions_3.jpg',
+  'organic-ginger': 'https://upload.wikimedia.org/wikipedia/commons/c/c1/Ginger_Plant_vs.jpg',
+  'organic-carrot': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Carrots_of_many_colors.jpg/960px-Carrots_of_many_colors.jpg',
+  'organic-spinach': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Spinach_leaves.jpg/960px-Spinach_leaves.jpg',
 
-  'basmati-rice': 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800&q=80',
-  'toor-dal': 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=800&q=80',
-  'atta-whole-wheat': 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=800&q=80',
-  'sunflower-oil': 'https://images.pexels.com/photos/33783/olive-oil-salad-dressing-cooking-olive.jpg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'sugar': 'https://images.unsplash.com/photo-1505253758473-96b7015fcd40?w=800&q=80',
-  'turmeric-powder': 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=800&q=80',
+  'basmati-rice': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Basmati_Rice_India%2C_raw.jpg/960px-Basmati_Rice_India%2C_raw.jpg',
+  'toor-dal': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Pigeon_Pea_%28Toor_Dal%29_%2849683602388%29.jpg/960px-Pigeon_Pea_%28Toor_Dal%29_%2849683602388%29.jpg',
+  'atta-whole-wheat': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Whole_wheat_grain_flour_being_scooped.jpg/960px-Whole_wheat_grain_flour_being_scooped.jpg',
+  'sunflower-oil': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/2022_sunflower_oil_-_manufacturing_dates_02.jpg/960px-2022_sunflower_oil_-_manufacturing_dates_02.jpg',
+  'sugar': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Sugar_2xmacro.jpg/960px-Sugar_2xmacro.jpg',
+  'turmeric-powder': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Turmeric_Powder_Spelled_Out.jpg/960px-Turmeric_Powder_Spelled_Out.jpg',
 
-  'milk-toned': 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=800&q=80',
-  'curd': 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=800&q=80',
-  'paneer': 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=800&q=80',
-  'brown-bread': 'https://images.pexels.com/photos/1775043/pexels-photo-1775043.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'butter': 'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=800&q=80',
+  'milk-toned': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Bowl_milk_glass.jpg/960px-Bowl_milk_glass.jpg',
+  'curd': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Joghurt.jpg/960px-Joghurt.jpg',
+  'paneer': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Panir_Paneer_Indian_cheese_fresh.jpg/960px-Panir_Paneer_Indian_cheese_fresh.jpg',
+  'brown-bread': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Vegan_Nine_Grain_Whole_Wheat_Bread.jpg/960px-Vegan_Nine_Grain_Whole_Wheat_Bread.jpg',
+  'butter': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Butter_block.JPG/960px-Butter_block.JPG',
 
-  'orange-juice': 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=800&q=80',
-  'tea-leaves': 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=800&q=80',
-  'coffee-instant': 'https://images.pexels.com/photos/302899/pexels-photo-302899.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'coconut-water': 'https://images.pexels.com/photos/333868/pexels-photo-333868.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop',
-  'green-tea': 'https://images.unsplash.com/photo-1556881286-fc6915169721?w=800&q=80',
+  'orange-juice': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Orange_juice_1_edit1.jpg/960px-Orange_juice_1_edit1.jpg',
+  'tea-leaves': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Csinensis.jpg/960px-Csinensis.jpg',
+  'coffee-instant': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Instant_coffee.jpg/960px-Instant_coffee.jpg',
+  'coconut-water': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Coconut_Drink%2C_Pangandaran.JPG/960px-Coconut_Drink%2C_Pangandaran.JPG',
+  'green-tea': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Cup_of_green_tea_and_tea_pot_on_table.jpg/960px-Cup_of_green_tea_and_tea_pot_on_table.jpg',
 
-  'marie-biscuits': 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=800&q=80',
-  'namkeen-mix': 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=800&q=80',
-  'potato-chips': 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=800&q=80',
-  'cookies-assorted': 'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=800&q=80',
-  'peanuts-roasted': 'https://images.unsplash.com/photo-1550254478-ead40cc54513?w=800&q=80',
+  'marie-biscuits': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Galleta_Mar%C3%ADa.jpg/960px-Galleta_Mar%C3%ADa.jpg',
+  'namkeen-mix': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Indian_Snacks_%28Namkeen%29.jpg/960px-Indian_Snacks_%28Namkeen%29.jpg',
+  'potato-chips': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Potato-Chips.jpg/960px-Potato-Chips.jpg',
+  'cookies-assorted': 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Koekjestrommel_open.jpg',
+  'peanuts-roasted': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Roasted_peanuts_2.jpg/960px-Roasted_peanuts_2.jpg',
 };
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 function download(url, redirects = 0) {
   return new Promise((resolve, reject) => {
     if (redirects > 8) return reject(new Error('too many redirects'));
     const client = url.startsWith('https') ? https : http;
     const req = client.get(url, { headers: { 'User-Agent': UA } }, (res) => {
+      if (res.statusCode === 429) {
+        res.resume();
+        return reject(new Error('HTTP 429'));
+      }
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         const next = res.headers.location.startsWith('http')
           ? res.headers.location
@@ -106,7 +114,18 @@ async function main() {
     const out = path.join(dir, `${id}.jpg`);
     try {
       process.stdout.write(`Downloading ${id}... `);
-      const buf = await download(url);
+      let buf;
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        try {
+          buf = await download(url);
+          break;
+        } catch (err) {
+          if (attempt === 5 || !String(err.message).includes('429')) throw err;
+          const wait = attempt * 3000;
+          process.stdout.write(`retry in ${wait / 1000}s... `);
+          await sleep(wait);
+        }
+      }
       if (buf.length < 3000) throw new Error('too small');
       fs.writeFileSync(out, buf);
       console.log(`OK (${(buf.length / 1024).toFixed(0)} KB)`);
@@ -115,6 +134,7 @@ async function main() {
       console.log(`FAIL: ${err.message}`);
       fail++;
     }
+    await sleep(2000);
   }
   console.log(`\nDone: ${ok} images, ${fail} missing`);
   if (fail > 0) process.exit(1);
