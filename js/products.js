@@ -4,7 +4,7 @@ const FOMINO = {
   contactPerson: 'Pavan Kumar',
   phone: '+917840819741',
   phoneDisplay: '+91 7840819741',
-  email: 'support@fomino.in',
+  email: 'support@fominomart.in',
   address: 'Office no O-1231, Gaur City Centre, Sec-4, Greater Noida West, Gautam Buddha Nagar, UP 201318',
 };
 

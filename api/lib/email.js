@@ -1,6 +1,6 @@
 async function sendViaResend({ to, subject, html }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.FROM_EMAIL || 'orders@fomino.in';
+  const from = process.env.FROM_EMAIL || 'orders@fominomart.in';
 
   if (!apiKey) {
     console.log(`[EMAIL SKIPPED - no RESEND_API_KEY] To: ${to}, Subject: ${subject}`);

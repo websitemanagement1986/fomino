@@ -29,7 +29,7 @@ Open http://localhost:3000
 | `RAZORPAY_KEY_ID` | Razorpay public key |
 | `RAZORPAY_KEY_SECRET` | Razorpay secret |
 | `RESEND_API_KEY` | Email sending (optional) |
-| `FROM_EMAIL` | Sender email (default: orders@fomino.in) |
+| `FROM_EMAIL` | Sender email (default: orders@fominomart.in) |
 | `ADMIN_EMAIL` | Order & contact notifications |
 | `PORT` | Server port (default: 3000) |
 

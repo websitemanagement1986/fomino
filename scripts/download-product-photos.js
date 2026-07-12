@@ -10,7 +10,7 @@ const http = require('http');
 const dir = path.join(__dirname, '..', 'assets', 'products');
 fs.mkdirSync(dir, { recursive: true });
 
-const UA = 'FominoBot/1.0 (https://fomino.in; support@fomino.in)';
+const UA = 'FominoBot/1.0 (https://fomino.in; support@fominomart.in)';
 
 // Wikimedia Commons — stable, correctly labelled food photos
 const PHOTOS = {
