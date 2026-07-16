@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shipping Policy | Fomino</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="site-header"></div>
+  <section class="legal-page"><div class="container" id="legal-content"></div></section>
+  <div id="site-footer"></div>
+  <script src="js/products.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    renderLegalPage('Shipping Policy', `
+      <p>Last updated: ${new Date().getFullYear()}</p>
+      <p>This Shipping Policy explains how <strong>Fomino</strong> (operated by Fomino Product Hub Pvt Ltd) delivers orders placed on our website across India.</p>
+
+      <h2>1. Delivery Coverage</h2>
+      <p>We ship to serviceable pin codes throughout India. Enter your pincode at checkout to confirm whether delivery is available in your area.</p>
+
+      <h2>2. Shipping Charges</h2>
+      <ul>
+        <li><strong>Free shipping</strong> on all orders of <strong>₹500 and above</strong>.</li>
+        <li><strong>Standard delivery charge of ₹50</strong> applies to orders below ₹500.</li>
+        <li>Shipping charges are calculated automatically at checkout based on your cart value.</li>
+      </ul>
+
+      <h2>3. Order Processing &amp; Delivery Time</h2>
+      <ul>
+        <li>Orders are typically processed within 1–2 business days after confirmation.</li>
+        <li>Estimated delivery time is <strong>3–7 business days</strong> depending on your location and product availability.</li>
+        <li>Delivery timelines may be longer during festivals, peak seasons or adverse weather.</li>
+        <li>You will receive order confirmation and updates by email and/or SMS on your registered mobile number.</li>
+      </ul>
+
+      <h2>4. Delivery Attempts</h2>
+      <p>Our delivery partner will attempt delivery at the address provided during checkout. Please ensure your mobile number and address are correct. If you are unavailable, a second delivery attempt may be made. Repeated failed deliveries may result in order cancellation as per our <a href="cancellation.html">Cancellation Policy</a>.</p>
+
+      <h2>5. Cash on Delivery (COD)</h2>
+      <p>COD is available on eligible orders. The total payable amount (including shipping, if applicable) must be paid in cash at the time of delivery.</p>
+
+      <h2>6. Perishable &amp; Fragile Items</h2>
+      <p>Fresh fruits and vegetables are packed with care. Please inspect your order at the time of delivery and report any damage or quality issues promptly. Opened or improperly stored perishable items after delivery cannot be returned.</p>
+
+      <h2>7. Undeliverable Orders</h2>
+      <p>Orders may be held or cancelled if the address is incomplete, incorrect, or outside our service area. For prepaid orders, a refund will be initiated after verification.</p>
+
+      <h2>8. Contact</h2>
+      <p>For shipping queries, call <a href="tel:+917840819741">+91 7840819741</a> or email <a href="mailto:support@fominomart.in">support@fominomart.in</a> with your order ID.</p>
+      <p>Fomino Product Hub Pvt Ltd, Office no O-1231, Gaur City Centre, Sec-4, Greater Noida West, Gautam Buddha Nagar, UP 201318.</p>
+    `);
+  </script>
+</body>
+</html>

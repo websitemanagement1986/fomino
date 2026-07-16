@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Delivery address is required for COD orders' });
     }
 
-    const { items, total } = validateCart(cart);
+    const { items, subtotal, deliveryCharge, total } = validateCart(cart);
     const transactionId = `FOM-COD-${Date.now()}`;
 
     await sendOrderEmails({
@@ -26,6 +26,8 @@ module.exports = async function handler(req, res) {
       orderId: transactionId,
       customer,
       items,
+      subtotal,
+      deliveryCharge,
       total,
       paymentMethod: 'cod',
     });

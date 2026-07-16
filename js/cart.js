@@ -58,6 +58,15 @@ function getCartTotal() {
   }, 0);
 }
 
+function getDeliveryCharge() {
+  const subtotal = getCartTotal();
+  return subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE;
+}
+
+function getOrderTotal() {
+  return getCartTotal() + getDeliveryCharge();
+}
+
 function getCartCount() {
   return getCart().reduce((sum, item) => sum + item.qty, 0);
 }

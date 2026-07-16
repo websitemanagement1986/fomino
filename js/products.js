@@ -1,3 +1,6 @@
+const FREE_DELIVERY_THRESHOLD = 500;
+const DELIVERY_CHARGE = 50;
+
 const FOMINO = {
   name: 'Fomino',
   company: 'Fomino Product Hub Pvt Ltd',

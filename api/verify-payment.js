@@ -37,13 +37,15 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Payment verification failed' });
     }
 
-    const { items, total } = validateCart(cart);
+    const { items, subtotal, deliveryCharge, total } = validateCart(cart);
 
     await sendOrderEmails({
       transactionId: razorpay_payment_id,
       orderId: razorpay_order_id,
       customer,
       items,
+      subtotal,
+      deliveryCharge,
       total,
       paymentMethod: 'online',
     });

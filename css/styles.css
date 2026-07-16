@@ -194,7 +194,8 @@ section { padding: 48px 0; }
 .legal-page h1 { font-size: 1.75rem; margin-bottom: 24px; color: var(--header-bg); }
 .legal-body h2 { font-size: 1.15rem; margin: 24px 0 10px; color: var(--secondary); }
 .legal-body p, .legal-body li { margin-bottom: 10px; color: var(--text-muted); line-height: 1.7; }
-.legal-body ul { margin-left: 24px; margin-bottom: 16px; }
+.legal-body ul,
+.legal-body ol { margin-left: 24px; margin-bottom: 16px; }
 
 .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
 .about-card { background: var(--white); padding: 32px; border-radius: var(--radius-lg); border: 1px solid var(--border); }

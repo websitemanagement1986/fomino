@@ -28,18 +28,22 @@ function renderCartPage() {
       <td><button class="btn-remove" onclick="removeFromCart('${item.id}'); renderCartPage();">✕</button></td>
     </tr>`).join('');
 
-  const total = getCartTotal();
+  const subtotal = getCartTotal();
+  const delivery = getDeliveryCharge();
+  const total = getOrderTotal();
   container.innerHTML = `
     <table class="cart-table">
       <thead><tr><th>Product</th><th>Price</th><th>Qty</th><th>Total</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <div class="cart-summary">
+      <div class="cart-total"><span>Subtotal</span><strong>₹${subtotal.toLocaleString('en-IN')}</strong></div>
+      <div class="cart-total"><span>Delivery</span><strong>${delivery ? `₹${delivery.toLocaleString('en-IN')}` : 'FREE'}</strong></div>
       <div class="cart-total">
         <span>Order Total</span>
         <strong>₹${total.toLocaleString('en-IN')}</strong>
       </div>
-      <p class="delivery-note">Free delivery on orders above ₹499</p>
+      <p class="delivery-note">Free delivery on orders above ₹500 · ₹50 standard charge below ₹500 · <a href="shipping.html">Shipping Policy</a></p>
       <a href="checkout.html" class="btn btn-primary btn-lg">Proceed to Checkout</a>
     </div>`;
 }
@@ -84,11 +88,15 @@ function renderCheckoutSummary() {
   const el = document.getElementById('checkout-summary');
   if (!el) return;
   const items = getCartDetails();
-  const total = getCartTotal();
+  const subtotal = getCartTotal();
+  const delivery = getDeliveryCharge();
+  const total = getOrderTotal();
   const method = getPaymentMethod();
   el.innerHTML = `
     <h3>Order Summary</h3>
     ${items.map((i) => `<div class="summary-row"><span>${i.name} × ${i.qty}</span><span>₹${i.lineTotal.toLocaleString('en-IN')}</span></div>`).join('')}
+    <div class="summary-row"><span>Subtotal</span><span>₹${subtotal.toLocaleString('en-IN')}</span></div>
+    <div class="summary-row"><span>Delivery</span><span>${delivery ? `₹${delivery.toLocaleString('en-IN')}` : 'FREE'}</span></div>
     <div class="summary-row total"><span>Total</span><span>₹${total.toLocaleString('en-IN')}</span></div>
     <p class="payment-note">${method === 'cod'
       ? '💵 Pay cash when your order is delivered'
@@ -126,7 +134,7 @@ async function placeCodOrder() {
 
     saveOrderAndRedirect({
       transactionId: result.transaction_id,
-      amount: getCartTotal(),
+      amount: getOrderTotal(),
       paymentMethod: 'cod',
       customer: data,
       items: getCartDetails(),
