@@ -115,83 +115,203 @@ module.exports = async function handler(req, res) {
       encrypted_data_length: paymateEncrypt.EncryptedData?.length || 0,
     };
 
-    const ipResponse = await fetch('https://api.ipify.org?format=json');
-    const ipData = await ipResponse.json();
-    report.checks.outbound_ip = { ok: true, ip: ipData.ip };
+    // #region agent log — H1: Check IP via multiple services
+    const ipChecks = {};
+    const ipServices = [
+      { name: 'ipify', url: 'https://api.ipify.org?format=json', extract: (d) => d.ip },
+      { name: 'ifconfig', url: 'https://ifconfig.me/ip', extract: (d) => d.trim() },
+      { name: 'httpbin', url: 'https://httpbin.org/ip', extract: (d) => d.origin },
+    ];
+    for (const svc of ipServices) {
+      try {
+        const r = await fetch(svc.url, { signal: AbortSignal.timeout(5000) });
+        const txt = await r.text();
+        let data;
+        try { data = JSON.parse(txt); } catch { data = txt; }
+        ipChecks[svc.name] = { ip: typeof data === 'string' ? svc.extract(data) : svc.extract(data), raw: typeof data === 'string' ? data.trim().slice(0, 50) : data };
+      } catch (err) {
+        ipChecks[svc.name] = { error: err.message };
+      }
+    }
+    const detectedIps = [...new Set(Object.values(ipChecks).map((c) => c.ip).filter(Boolean))];
+    report.checks.outbound_ip = {
+      ok: detectedIps.length === 1,
+      detected_ips: detectedIps,
+      services: ipChecks,
+      consistent: detectedIps.length === 1,
+      hypothesis: 'H1: If IPs differ, PayMate may see a different IP than ipify reports',
+    };
+    // #endregion
 
+    // #region agent log — H2-H5: Try multiple request variations
     const orderId = `DBG${Date.now()}`.slice(0, 20);
     const payload = buildSamplePayload(orderId);
     const encryptedBody = encryptRequest(payload, config.paymatePublicCert, config.iv);
+    const jsonBody = JSON.stringify(encryptedBody);
 
-    const started = Date.now();
-    const response = await fetch(config.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        MerchantId: config.merchantId,
-        TerminalId: config.terminalId,
-        BusinessXpressID: config.businessXpressId,
+    const variations = [
+      {
+        id: 'original',
+        hypothesis: 'H2: Current header casing',
+        url: config.endpoint,
+        headers: {
+          'Content-Type': 'application/json',
+          MerchantId: config.merchantId,
+          TerminalId: config.terminalId,
+          BusinessXpressID: config.businessXpressId,
+        },
       },
-      body: JSON.stringify(encryptedBody),
-    });
-    const rawText = await response.text();
-    let rawJson;
-    try {
-      rawJson = JSON.parse(rawText);
-    } catch {
-      rawJson = { parse_error: true, raw_preview: rawText.slice(0, 300) };
-    }
+      {
+        id: 'lowercase_bxid',
+        hypothesis: 'H2: BusinessXpressId instead of BusinessXpressID',
+        url: config.endpoint,
+        headers: {
+          'Content-Type': 'application/json',
+          MerchantId: config.merchantId,
+          TerminalId: config.terminalId,
+          BusinessXpressId: config.businessXpressId,
+        },
+      },
+      {
+        id: 'all_lowercase',
+        hypothesis: 'H2: All lowercase header names',
+        url: config.endpoint,
+        headers: {
+          'content-type': 'application/json',
+          merchantid: config.merchantId,
+          terminalid: config.terminalId,
+          businessxpressid: config.businessXpressId,
+        },
+      },
+      {
+        id: 'with_useragent',
+        hypothesis: 'H3: Adding User-Agent header',
+        url: config.endpoint,
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'FominoPayMate/1.0',
+          MerchantId: config.merchantId,
+          TerminalId: config.terminalId,
+          BusinessXpressID: config.businessXpressId,
+        },
+      },
+      {
+        id: 'uat_endpoint',
+        hypothesis: 'H4: Try UAT/sandbox endpoint',
+        url: config.endpoint.replace('paymate.in', 'uat.paymate.in'),
+        headers: {
+          'Content-Type': 'application/json',
+          MerchantId: config.merchantId,
+          TerminalId: config.terminalId,
+          BusinessXpressID: config.businessXpressId,
+        },
+      },
+      {
+        id: 'sandbox_endpoint',
+        hypothesis: 'H4: Try sandbox endpoint',
+        url: config.endpoint.replace('paymate.in', 'sandbox.paymate.in'),
+        headers: {
+          'Content-Type': 'application/json',
+          MerchantId: config.merchantId,
+          TerminalId: config.terminalId,
+          BusinessXpressID: config.businessXpressId,
+        },
+      },
+    ];
 
-    let parsed = null;
+    report.variation_results = [];
+
+    for (const v of variations) {
+      const t0 = Date.now();
+      try {
+        const r = await fetch(v.url, {
+          method: 'POST',
+          headers: v.headers,
+          body: jsonBody,
+          signal: AbortSignal.timeout(10000),
+        });
+        const txt = await r.text();
+        let body;
+        try { body = JSON.parse(txt); } catch { body = { raw_preview: txt.slice(0, 300) }; }
+        report.variation_results.push({
+          id: v.id,
+          hypothesis: v.hypothesis,
+          url: v.url,
+          headers_sent: v.headers,
+          duration_ms: Date.now() - t0,
+          http_status: r.status,
+          response_body: body,
+          status_code: body?.StatusCode || null,
+          changed: body?.StatusCode !== '105',
+        });
+      } catch (err) {
+        report.variation_results.push({
+          id: v.id,
+          hypothesis: v.hypothesis,
+          url: v.url,
+          error: err.message,
+          duration_ms: Date.now() - t0,
+        });
+      }
+    }
+    // #endregion
+
+    // #region agent log — H5: Try DNS resolution of paymate.in
     try {
-      parsed = parsePayMateResponse(rawJson, config);
+      const dns = require('dns');
+      const { promisify } = require('util');
+      const resolve4 = promisify(dns.resolve4);
+      const paymateIps = await resolve4('paymate.in');
+      report.checks.paymate_dns = { ok: true, ips: paymateIps };
     } catch (err) {
-      parsed = { parse_error: err.message };
+      report.checks.paymate_dns = { ok: false, error: err.message };
     }
+    // #endregion
 
-    const requestHeaders = {
-      'Content-Type': 'application/json',
-      MerchantId: config.merchantId,
-      TerminalId: config.terminalId,
-      BusinessXpressID: config.businessXpressId,
-    };
-
+    const primaryResult = report.variation_results.find((v) => v.id === 'original') || {};
     report.paymate_call = {
-      duration_ms: Date.now() - started,
+      duration_ms: primaryResult.duration_ms,
       request: {
         method: 'POST',
         url: config.endpoint,
-        headers: requestHeaders,
+        headers: primaryResult.headers_sent,
         body: encryptedBody,
         plain_text_payload: payload,
       },
       response: {
-        http_status: response.status,
-        headers: Object.fromEntries(response.headers.entries()),
-        body: rawJson,
+        http_status: primaryResult.http_status,
+        body: primaryResult.response_body,
       },
       sample_order_id: orderId,
-      parsed_response: parsed,
-      status_code: parsed?.StatusCode || rawJson?.StatusCode || null,
-      description: extractPaymateMessage(parsed) || extractPaymateMessage(rawJson),
-      payment_url: extractPaymentUrl(parsed),
-      success: isSuccessPayload(parsed),
+      status_code: primaryResult.status_code,
+      description: primaryResult.response_body?.Description || null,
+      success: primaryResult.status_code === '100',
     };
 
-    if (report.paymate_call.status_code === '105') {
+    const anyDifferent = report.variation_results.filter((v) => v.changed);
+    if (anyDifferent.length > 0) {
       report.interpretation.push(
-        'PayMate StatusCode 105 = Request from Invalid Source. This is almost always IP whitelist or wrong merchant/environment on PayMate side.'
+        `BREAKTHROUGH: ${anyDifferent.length} variation(s) got a DIFFERENT response: ${anyDifferent.map((v) => v.id + '=' + v.status_code).join(', ')}`
       );
-      report.interpretation.push(
-        `Ask PayMate to whitelist outbound IP ${ipData.ip} for BusinessXpressID ${config.businessXpressId} on PRODUCTION.`
-      );
-    } else if (report.paymate_call.success) {
-      report.interpretation.push('PayMate API call succeeded from our side. Checkout should work.');
-    } else if (report.paymate_call.description) {
-      report.interpretation.push(`PayMate returned: ${report.paymate_call.description}`);
     }
 
-    report.checks.overall_ok = report.paymate_call.success === true;
+    if (!report.checks.outbound_ip.consistent) {
+      report.interpretation.push(
+        `H1 ALERT: Multiple outbound IPs detected: ${detectedIps.join(', ')}. PayMate may see a different IP.`
+      );
+    } else {
+      report.interpretation.push(
+        `H1: Outbound IP consistent across services: ${detectedIps[0]}`
+      );
+    }
+
+    if (primaryResult.status_code === '105' && anyDifferent.length === 0) {
+      report.interpretation.push(
+        'All header/endpoint variations still got 105. Issue is likely IP whitelist or account activation on PayMate side.'
+      );
+    }
+
+    report.checks.overall_ok = primaryResult.status_code === '100';
 
     return res.status(200).json(report);
   } catch (err) {
