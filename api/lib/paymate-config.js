@@ -1,9 +1,62 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 function normalizePem(value) {
   if (!value) return '';
-  return value.replace(/\\n/g, '\n').trim();
+
+  let pem = String(value).trim();
+  if (pem.charCodeAt(0) === 0xfeff) pem = pem.slice(1);
+
+  if (
+    (pem.startsWith('"') && pem.endsWith('"')) ||
+    (pem.startsWith("'") && pem.endsWith("'"))
+  ) {
+    pem = pem.slice(1, -1).trim();
+  }
+
+  pem = pem.replace(/\\n/g, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  if (pem.includes('-----BEGIN') && pem.includes('-----END')) {
+    const beginMatch = pem.match(/-----BEGIN [A-Z0-9 ]+-----/);
+    const endMatch = pem.match(/-----END [A-Z0-9 ]+-----/);
+    if (beginMatch && endMatch) {
+      const begin = beginMatch[0];
+      const end = endMatch[0];
+      const start = pem.indexOf(begin) + begin.length;
+      const endIdx = pem.indexOf(end);
+      const body = pem.slice(start, endIdx).replace(/\s+/g, '');
+      if (body) {
+        const lines = body.match(/.{1,64}/g) || [];
+        pem = `${begin}\n${lines.join('\n')}\n${end}`;
+      }
+    }
+  }
+
+  return `${pem.trim()}\n`;
+}
+
+function validatePrivateKey(pem, label) {
+  try {
+    crypto.createPrivateKey(pem);
+    return true;
+  } catch (err) {
+    const hasBegin = pem.includes('-----BEGIN');
+    const hasEnd = pem.includes('-----END');
+    throw new Error(
+      `${label} is invalid. Ensure you pasted partner_private.pem (not partner_public.txt). ` +
+        `BEGIN marker: ${hasBegin}, END marker: ${hasEnd}. ${err.message}`
+    );
+  }
+}
+
+function validateCertificate(pem, label) {
+  try {
+    crypto.createPublicKey(pem);
+    return true;
+  } catch (err) {
+    throw new Error(`${label} is invalid: ${err.message}`);
+  }
 }
 
 function resolveExistingPath(candidates) {
@@ -18,34 +71,38 @@ function resolveExistingPath(candidates) {
   return null;
 }
 
-function loadPem({ label, inlineEnv, pathEnv, defaultRelativePaths, appRoot }) {
+function loadPem({ label, inlineEnv, pathEnv, defaultRelativePaths, appRoot, kind = 'any' }) {
   const inline = normalizePem(inlineEnv);
-  if (inline) {
-    return inline;
-  }
+  let pem = inline;
 
-  const candidates = [];
-  if (pathEnv) {
-    candidates.push(pathEnv);
-    if (!path.isAbsolute(pathEnv)) {
-      candidates.push(path.join(process.cwd(), pathEnv));
-      candidates.push(path.join(appRoot, pathEnv));
+  if (!pem) {
+    const candidates = [];
+    if (pathEnv) {
+      candidates.push(pathEnv);
+      if (!path.isAbsolute(pathEnv)) {
+        candidates.push(path.join(process.cwd(), pathEnv));
+        candidates.push(path.join(appRoot, pathEnv));
+      }
     }
+
+    for (const relativePath of defaultRelativePaths) {
+      candidates.push(path.join(appRoot, relativePath));
+      candidates.push(path.join(process.cwd(), relativePath));
+    }
+
+    const resolvedPath = resolveExistingPath(candidates);
+    if (!resolvedPath) {
+      throw new Error(
+        `${label} not found. Upload the file or set ${label} env content. Tried: ${[...new Set(candidates)].join(' | ')} | cwd=${process.cwd()} | appRoot=${appRoot}`
+      );
+    }
+
+    pem = normalizePem(fs.readFileSync(resolvedPath, 'utf8'));
   }
 
-  for (const relativePath of defaultRelativePaths) {
-    candidates.push(path.join(appRoot, relativePath));
-    candidates.push(path.join(process.cwd(), relativePath));
-  }
-
-  const resolvedPath = resolveExistingPath(candidates);
-  if (!resolvedPath) {
-    throw new Error(
-      `${label} not found. Upload the file or set ${label} env content. Tried: ${[...new Set(candidates)].join(' | ')} | cwd=${process.cwd()} | appRoot=${appRoot}`
-    );
-  }
-
-  return fs.readFileSync(resolvedPath, 'utf8');
+  if (kind === 'private') validatePrivateKey(pem, label);
+  if (kind === 'certificate') validateCertificate(pem, label);
+  return pem;
 }
 
 function getPaymateConfig() {
@@ -71,6 +128,7 @@ function getPaymateConfig() {
     pathEnv: process.env.PAYMATE_PUBLIC_CERT_PATH,
     defaultRelativePaths: ['certs/paymate-public.cer'],
     appRoot,
+    kind: 'certificate',
   });
 
   const partnerPrivateKey = loadPem({
@@ -79,6 +137,7 @@ function getPaymateConfig() {
     pathEnv: process.env.PAYMATE_PARTNER_PRIVATE_KEY_PATH,
     defaultRelativePaths: ['ssl-pg-partner/partner_private.pem'],
     appRoot,
+    kind: 'private',
   });
 
   return {
