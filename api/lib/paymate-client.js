@@ -1,11 +1,20 @@
 const { encryptRequest, decryptPayload } = require('./paymate-crypto');
 const { getPaymateConfig } = require('./paymate-config');
 
+function getDetailedSummary(payload) {
+  if (Array.isArray(payload?.DetailedSummary)) {
+    return payload.DetailedSummary[0] || null;
+  }
+  return payload?.DetailedSummary || payload?.Response || null;
+}
+
 function extractPaymateMessage(payload) {
+  const summary = getDetailedSummary(payload);
   return (
     payload?.Description ||
     payload?.ErrorDescription ||
-    payload?.DetailedSummary?.Message ||
+    summary?.StatusMessage ||
+    summary?.Message ||
     payload?.message ||
     payload?.error ||
     null
@@ -13,9 +22,12 @@ function extractPaymateMessage(payload) {
 }
 
 function extractPaymentUrl(payload) {
+  const summary = getDetailedSummary(payload);
   const candidates = [
     payload?.Response?.PaymentURL,
     payload?.Response?.PaymentUrl,
+    summary?.PaymentURL,
+    summary?.PaymentUrl,
     payload?.DetailedSummary?.PaymentURL,
     payload?.DetailedSummary?.PaymentUrl,
     payload?.PaymentURL,
@@ -31,6 +43,7 @@ function isSuccessPayload(payload) {
     payload?.StatusCode || payload?.ErrorCode || payload?.statusCode || payload?.errorCode || ''
   );
   if (code === '000' || code === '0') return true;
+  if (extractPaymentUrl(payload)) return true;
   const description = String(payload?.Description || payload?.ErrorDescription || '').toLowerCase();
   return description.includes('success');
 }

@@ -111,7 +111,33 @@ function httpsPostMTLS(urlStr, headers, body, clientKey, clientCert) {
   });
 }
 
-function maskId(value) {
+function analyzePaymateBody(body, config) {
+  if (!body || typeof body !== 'object') {
+    return { raw: body, status_code: null, success: false };
+  }
+
+  if (body.EncryptedData || body.encryptedData) {
+    const parsed = parsePayMateResponse(body, config);
+    return {
+      encrypted: true,
+      parsed,
+      status_code: parsed?.StatusCode || null,
+      description: extractPaymateMessage(parsed),
+      payment_url: extractPaymentUrl(parsed),
+      success: isSuccessPayload(parsed),
+    };
+  }
+
+  return {
+    encrypted: false,
+    parsed: body,
+    status_code: body?.StatusCode || null,
+    description: extractPaymateMessage(body),
+    payment_url: extractPaymentUrl(body),
+    success: isSuccessPayload(body),
+  };
+}
+
   if (!value || value.length < 8) return value;
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
 }
@@ -329,6 +355,7 @@ module.exports = async function handler(req, res) {
         const txt = await r.text();
         let body;
         try { body = JSON.parse(txt); } catch { body = { raw_preview: txt.slice(0, 300) }; }
+        const analyzed = analyzePaymateBody(body, config);
         report.variation_results.push({
           id: v.id,
           hypothesis: v.hypothesis,
@@ -337,8 +364,13 @@ module.exports = async function handler(req, res) {
           duration_ms: Date.now() - t0,
           http_status: r.status,
           response_body: body,
-          status_code: body?.StatusCode || null,
-          changed: body?.StatusCode !== '105',
+          parsed_response: analyzed.parsed,
+          encrypted_response: analyzed.encrypted,
+          status_code: analyzed.status_code,
+          description: analyzed.description,
+          payment_url: analyzed.payment_url,
+          success: analyzed.success,
+          changed: analyzed.status_code !== '105',
         });
       } catch (err) {
         report.variation_results.push({
@@ -375,15 +407,19 @@ module.exports = async function handler(req, res) {
     try {
       const t0 = Date.now();
       const ipv4Result = await httpsPostIPv4(config.endpoint, ipv4Headers, jsonBody);
+      const ipv4Analyzed = analyzePaymateBody(ipv4Result.body, config);
       report.forced_ipv4_call = {
         hypothesis: 'H1/H6: Force IPv4 (family:4) to ensure PayMate sees 217.21.90.91',
         duration_ms: Date.now() - t0,
         connection: ipv4Result.connection,
         http_status: ipv4Result.status,
         response_body: ipv4Result.body,
-        status_code: ipv4Result.body?.StatusCode || null,
-        description: ipv4Result.body?.Description || null,
-        different_from_fetch: ipv4Result.body?.StatusCode !== '105',
+        parsed_response: ipv4Analyzed.parsed,
+        status_code: ipv4Analyzed.status_code,
+        description: ipv4Analyzed.description,
+        payment_url: ipv4Analyzed.payment_url,
+        success: ipv4Analyzed.success,
+        different_from_fetch: ipv4Analyzed.status_code !== '105',
       };
     } catch (err) {
       report.forced_ipv4_call = { error: err.message };
@@ -400,15 +436,19 @@ module.exports = async function handler(req, res) {
       try {
         const t0 = Date.now();
         const mtlsResult = await httpsPostMTLS(config.endpoint, ipv4Headers, jsonBody, config.partnerPrivateKey, partnerCertPem);
+        const mtlsAnalyzed = analyzePaymateBody(mtlsResult.body, config);
         report.mtls_call = {
           hypothesis: 'H7: mTLS — present partner cert as TLS client certificate',
           duration_ms: Date.now() - t0,
           connection: mtlsResult.connection,
           http_status: mtlsResult.status,
           response_body: mtlsResult.body,
-          status_code: mtlsResult.body?.StatusCode || null,
-          description: mtlsResult.body?.Description || null,
-          different_from_normal: mtlsResult.body?.StatusCode !== '105',
+          parsed_response: mtlsAnalyzed.parsed,
+          status_code: mtlsAnalyzed.status_code,
+          description: mtlsAnalyzed.description,
+          payment_url: mtlsAnalyzed.payment_url,
+          success: mtlsAnalyzed.success,
+          different_from_normal: mtlsAnalyzed.status_code !== '105',
         };
       } catch (err) {
         report.mtls_call = {
@@ -451,45 +491,71 @@ module.exports = async function handler(req, res) {
       response: {
         http_status: primaryResult.http_status,
         body: primaryResult.response_body,
+        parsed: primaryResult.parsed_response || null,
       },
       sample_order_id: orderId,
       status_code: primaryResult.status_code,
-      description: primaryResult.response_body?.Description || null,
-      success: primaryResult.status_code === '100',
+      description: primaryResult.description || null,
+      payment_url: primaryResult.payment_url || null,
+      success: Boolean(primaryResult.success),
     };
+
+    report.interpretation = [];
+
+    if (primaryResult.encrypted_response && primaryResult.status_code !== '105') {
+      if (primaryResult.success) {
+        report.interpretation.push(
+          'PayMate connection is working. Encrypted response decrypted successfully and request was accepted.'
+        );
+        if (primaryResult.payment_url) {
+          report.interpretation.push(`Payment URL received: ${primaryResult.payment_url}`);
+        }
+      } else if (primaryResult.status_code === '178') {
+        report.interpretation.push(
+          'PayMate accepted the connection (105 is fixed) but rejected request fields: Invalid Payment Mode. Ask PayMate to enable Checkout payment modes (UPI/Card/NetBanking) for merchant KIJY000002.'
+        );
+        report.interpretation.push(
+          `Detail: ${primaryResult.parsed_response?.DetailedSummary?.[0]?.StatusMessage || primaryResult.description}`
+        );
+      } else {
+        report.interpretation.push(
+          `PayMate returned StatusCode ${primaryResult.status_code}: ${primaryResult.description || 'see parsed_response'}`
+        );
+      }
+    } else if (primaryResult.status_code === '105') {
+      report.interpretation.push(
+        'PayMate StatusCode 105 = Request from Invalid Source. IP whitelist or account activation issue on PayMate side.'
+      );
+    }
 
     const anyDifferent = report.variation_results.filter((v) => v.changed);
     const ipv4Different = report.forced_ipv4_call?.different_from_fetch;
 
-    if (ipv4Different) {
+    if (ipv4Different && primaryResult.status_code === '105') {
       report.interpretation.push(
         `BREAKTHROUGH: Forcing IPv4 got StatusCode ${report.forced_ipv4_call.status_code} instead of 105! The issue is IPv6. Fix: force all PayMate calls to use IPv4.`
       );
     }
 
-    if (anyDifferent.length > 0) {
+    if (anyDifferent.length > 0 && primaryResult.status_code === '105') {
       report.interpretation.push(
-        `BREAKTHROUGH: ${anyDifferent.length} variation(s) got a DIFFERENT response: ${anyDifferent.map((v) => v.id + '=' + v.status_code).join(', ')}`
+        `${anyDifferent.length} variation(s) got a different response from 105: ${anyDifferent.map((v) => v.id + '=' + v.status_code).join(', ')}`
       );
     }
 
     if (!report.checks.outbound_ip.consistent) {
       report.interpretation.push(
-        `H1 ALERT: Multiple outbound IPs detected: ${detectedIps.join(', ')}. PayMate may see a different IP.`
-      );
-    } else {
-      report.interpretation.push(
-        `H1: Outbound IP consistent across services: ${detectedIps[0]}`
+        `Outbound IPv4 to PayMate is ${ipChecks.ipify_https_ipv4?.ip || detectedIps[0]}. IPv6 also present on server but PayMate uses IPv4.`
       );
     }
 
     if (primaryResult.status_code === '105' && anyDifferent.length === 0) {
       report.interpretation.push(
-        'All header/endpoint variations still got 105. Issue is likely IP whitelist or account activation on PayMate side.'
+        'All variations still got 105. Issue is likely IP whitelist or account activation on PayMate side.'
       );
     }
 
-    report.checks.overall_ok = primaryResult.status_code === '100';
+    report.checks.overall_ok = Boolean(primaryResult.success);
 
     return res.status(200).json(report);
   } catch (err) {
