@@ -73,6 +73,44 @@ function httpsGetIPv4(urlStr) {
   });
 }
 
+function httpsPostMTLS(urlStr, headers, body, clientKey, clientCert) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlStr);
+    const options = {
+      hostname: url.hostname,
+      port: 443,
+      path: url.pathname,
+      method: 'POST',
+      headers: { ...headers, 'Content-Length': Buffer.byteLength(body) },
+      family: 4,
+      key: clientKey,
+      cert: clientCert,
+      timeout: 10000,
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        let parsed;
+        try { parsed = JSON.parse(data); } catch { parsed = { raw: data.slice(0, 300) }; }
+        resolve({
+          status: res.statusCode,
+          body: parsed,
+          connection: {
+            localAddress: req.socket?.localAddress,
+            remoteAddress: req.socket?.remoteAddress,
+            authorized: req.socket?.authorized,
+          },
+        });
+      });
+    });
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 function maskId(value) {
   if (!value || value.length < 8) return value;
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
@@ -368,6 +406,54 @@ module.exports = async function handler(req, res) {
       };
     } catch (err) {
       report.forced_ipv4_call = { error: err.message };
+    }
+    // #endregion
+
+    // #region agent log — H7: Test mTLS (present partner cert as TLS client certificate)
+    const fs = require('fs');
+    const partnerCertPath = require('path').join(__dirname, '..', '..', 'certs', 'partner-public.cer');
+    let partnerCertPem = null;
+    try { partnerCertPem = fs.readFileSync(partnerCertPath, 'utf8'); } catch { /* not deployed */ }
+
+    if (partnerCertPem) {
+      try {
+        const t0 = Date.now();
+        const mtlsResult = await httpsPostMTLS(config.endpoint, ipv4Headers, jsonBody, config.partnerPrivateKey, partnerCertPem);
+        report.mtls_call = {
+          hypothesis: 'H7: mTLS — present partner cert as TLS client certificate',
+          duration_ms: Date.now() - t0,
+          connection: mtlsResult.connection,
+          http_status: mtlsResult.status,
+          response_body: mtlsResult.body,
+          status_code: mtlsResult.body?.StatusCode || null,
+          description: mtlsResult.body?.Description || null,
+          different_from_normal: mtlsResult.body?.StatusCode !== '105',
+        };
+      } catch (err) {
+        report.mtls_call = {
+          hypothesis: 'H7: mTLS — present partner cert as TLS client certificate',
+          error: err.message,
+          error_code: err.code,
+        };
+      }
+    } else {
+      report.mtls_call = { skipped: true, reason: 'partner-public.cer not found at ' + partnerCertPath };
+    }
+    // #endregion
+
+    // #region agent log — H8: Check PayMate cert validity
+    try {
+      const payCert = new crypto.X509Certificate(config.paymatePublicCert);
+      report.checks.paymate_cert_info = {
+        subject: payCert.subject,
+        issuer: payCert.issuer,
+        validFrom: payCert.validFrom,
+        validTo: payCert.validTo,
+        expired: new Date(payCert.validTo) < new Date(),
+        days_remaining: Math.floor((new Date(payCert.validTo) - new Date()) / 86400000),
+      };
+    } catch (err) {
+      report.checks.paymate_cert_info = { error: err.message };
     }
     // #endregion
 
