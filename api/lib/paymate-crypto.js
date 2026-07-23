@@ -41,9 +41,27 @@ function encryptRequest(plainObject, paymatePublicCertPem, ivValue) {
   return { EncryptedRandomKey: encryptedRandomKey, EncryptedData: encryptedData };
 }
 
-function decryptPayload({ EncryptedRandomKey, EncryptedData }, partnerPrivateKeyPem, ivValue) {
+function normalizeEncryptedFields(body) {
+  if (!body || typeof body !== 'object') {
+    return { EncryptedRandomKey: null, EncryptedData: null };
+  }
+
+  const entries = Object.entries(body);
+  const find = (name) => {
+    const match = entries.find(([key]) => key.toLowerCase() === name.toLowerCase());
+    return match ? match[1] : null;
+  };
+
+  return {
+    EncryptedRandomKey: find('EncryptedRandomKey'),
+    EncryptedData: find('EncryptedData'),
+  };
+}
+
+function decryptPayload(body, partnerPrivateKeyPem, ivValue) {
+  const { EncryptedRandomKey, EncryptedData } = normalizeEncryptedFields(body);
   if (!EncryptedRandomKey || !EncryptedData) {
-    throw new Error('Invalid encrypted payload from PayMate');
+    return null;
   }
 
   const iv = getIvBuffer(ivValue);

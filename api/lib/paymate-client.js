@@ -1,6 +1,17 @@
 const { encryptRequest, decryptPayload } = require('./paymate-crypto');
 const { getPaymateConfig } = require('./paymate-config');
 
+function extractPaymateMessage(payload) {
+  return (
+    payload?.Description ||
+    payload?.ErrorDescription ||
+    payload?.DetailedSummary?.Message ||
+    payload?.message ||
+    payload?.error ||
+    null
+  );
+}
+
 function extractPaymentUrl(payload) {
   const candidates = [
     payload?.Response?.PaymentURL,
@@ -22,6 +33,19 @@ function isSuccessPayload(payload) {
   if (code === '000' || code === '0') return true;
   const description = String(payload?.Description || payload?.ErrorDescription || '').toLowerCase();
   return description.includes('success');
+}
+
+function parsePayMateResponse(rawResponse, config) {
+  const decrypted = decryptPayload(rawResponse, config.partnerPrivateKey, config.iv);
+  if (decrypted) {
+    return decrypted;
+  }
+
+  if (rawResponse && typeof rawResponse === 'object') {
+    return rawResponse;
+  }
+
+  throw new Error('Unexpected PayMate response format');
 }
 
 async function callPayMate(plainPayload) {
@@ -47,16 +71,22 @@ async function callPayMate(plainPayload) {
     throw new Error(`PayMate returned non-JSON response (${response.status})`);
   }
 
-  if (!response.ok && !encryptedResponse.EncryptedData) {
-    throw new Error(encryptedResponse.message || encryptedResponse.error || `PayMate HTTP ${response.status}`);
+  if (!response.ok && !encryptedResponse.EncryptedData && !encryptedResponse.StatusCode) {
+    throw new Error(extractPaymateMessage(encryptedResponse) || `PayMate HTTP ${response.status}`);
   }
 
-  const decrypted = decryptPayload(encryptedResponse, config.partnerPrivateKey, config.iv);
+  const decrypted = parsePayMateResponse(encryptedResponse, config);
+  if (!isSuccessPayload(decrypted)) {
+    throw new Error(extractPaymateMessage(decrypted) || 'PayMate rejected the payment request');
+  }
+
   return { decrypted, config };
 }
 
 module.exports = {
   callPayMate,
   extractPaymentUrl,
+  extractPaymateMessage,
   isSuccessPayload,
+  parsePayMateResponse,
 };

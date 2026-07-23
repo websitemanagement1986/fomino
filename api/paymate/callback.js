@@ -71,8 +71,9 @@ module.exports = async function handler(req, res) {
     const body = req.body || {};
 
     let payload = body;
-    if (body.EncryptedRandomKey && body.EncryptedData) {
-      payload = decryptPayload(body, config.partnerPrivateKey, config.iv);
+    if (body.EncryptedRandomKey || body.encryptedRandomKey) {
+      const decrypted = decryptPayload(body, config.partnerPrivateKey, config.iv);
+      if (decrypted) payload = decrypted;
     }
 
     const orderId = extractOrderId(payload);
