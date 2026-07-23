@@ -169,7 +169,17 @@ async function initiatePayment() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cart, customer: data }),
     });
-    const result = await res.json();
+    const rawText = await res.text();
+    let result;
+    try {
+      result = JSON.parse(rawText);
+    } catch {
+      throw new Error(
+        res.ok
+          ? 'Server returned an invalid response. Please try again in a moment.'
+          : `Server error (${res.status}). The site may be restarting — please try again shortly.`
+      );
+    }
     if (!res.ok) throw new Error(result.error || 'Failed to create payment');
 
     sessionStorage.setItem('fomino_paymate_pending', JSON.stringify({

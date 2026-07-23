@@ -138,6 +138,7 @@ function analyzePaymateBody(body, config) {
   };
 }
 
+function maskId(value) {
   if (!value || value.length < 8) return value;
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
 }
