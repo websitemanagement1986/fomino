@@ -1,5 +1,5 @@
 /**
- * Print a Hostinger-safe single-line PAYMATE_PARTNER_PRIVATE_KEY value.
+ * Print Hostinger-safe base64 env value for the partner private key.
  * Run: node scripts/print-paymate-private-key-env.js
  */
 const fs = require('fs');
@@ -10,6 +10,9 @@ const keyPath = path.join(__dirname, '..', 'ssl-pg-partner', 'partner_private.pe
 const pem = fs.readFileSync(keyPath, 'utf8');
 crypto.createPrivateKey(pem);
 
-const oneLine = pem.trim().replace(/\r\n/g, '\n').replace(/\n/g, '\\n');
-console.log('Copy this entire line into Hostinger env var PAYMATE_PARTNER_PRIVATE_KEY:\n');
-console.log(oneLine);
+const b64 = Buffer.from(pem, 'utf8').toString('base64');
+
+console.log('Recommended for Hostinger (avoids newline/base64 corruption):\n');
+console.log('Env name: PAYMATE_PARTNER_PRIVATE_KEY_B64');
+console.log('Env value length:', b64.length, 'characters\n');
+console.log(b64);

@@ -71,6 +71,41 @@ function resolveExistingPath(candidates) {
   return null;
 }
 
+function decodeBase64Pem(value, label) {
+  if (!value) return '';
+  const cleaned = String(value).trim().replace(/\s+/g, '');
+  if (!cleaned) return '';
+  try {
+    return normalizePem(Buffer.from(cleaned, 'base64').toString('utf8'));
+  } catch (err) {
+    throw new Error(`${label} base64 decode failed: ${err.message}`);
+  }
+}
+
+function loadPartnerPrivateKey(appRoot) {
+  const b64 = process.env.PAYMATE_PARTNER_PRIVATE_KEY_B64;
+  if (b64) {
+    const pem = decodeBase64Pem(b64, 'Partner private key');
+    validatePrivateKey(pem, 'Partner private key');
+    return { pem, source: 'PAYMATE_PARTNER_PRIVATE_KEY_B64' };
+  }
+
+  const pem = loadPem({
+    label: 'Partner private key',
+    inlineEnv: process.env.PAYMATE_PARTNER_PRIVATE_KEY,
+    pathEnv: process.env.PAYMATE_PARTNER_PRIVATE_KEY_PATH,
+    defaultRelativePaths: ['ssl-pg-partner/partner_private.pem'],
+    appRoot,
+    kind: 'private',
+  });
+
+  const source = process.env.PAYMATE_PARTNER_PRIVATE_KEY
+    ? 'PAYMATE_PARTNER_PRIVATE_KEY env'
+    : process.env.PAYMATE_PARTNER_PRIVATE_KEY_PATH || 'ssl-pg-partner/partner_private.pem file';
+
+  return { pem, source };
+}
+
 function loadPem({ label, inlineEnv, pathEnv, defaultRelativePaths, appRoot, kind = 'any' }) {
   const inline = normalizePem(inlineEnv);
   let pem = inline;
@@ -131,14 +166,7 @@ function getPaymateConfig() {
     kind: 'certificate',
   });
 
-  const partnerPrivateKey = loadPem({
-    label: 'Partner private key',
-    inlineEnv: process.env.PAYMATE_PARTNER_PRIVATE_KEY,
-    pathEnv: process.env.PAYMATE_PARTNER_PRIVATE_KEY_PATH,
-    defaultRelativePaths: ['ssl-pg-partner/partner_private.pem'],
-    appRoot,
-    kind: 'private',
-  });
+  const partner = loadPartnerPrivateKey(appRoot);
 
   return {
     merchantId,
@@ -148,7 +176,8 @@ function getPaymateConfig() {
     endpoint,
     siteUrl,
     paymatePublicCert,
-    partnerPrivateKey,
+    partnerPrivateKey: partner.pem,
+    partnerPrivateKeySource: partner.source,
     companyName: process.env.PAYMATE_COMPANY_NAME || 'Fomino Product Hub Pvt Ltd',
     referenceCode: process.env.PAYMATE_REFERENCE_CODE || 'FOMINO01',
   };

@@ -87,9 +87,10 @@ module.exports = async function handler(req, res) {
       iv_length: config.iv.length,
       paymate_public_cert_loaded: config.paymatePublicCert.includes('BEGIN CERTIFICATE'),
       partner_private_key_loaded: config.partnerPrivateKey.includes('BEGIN'),
-      partner_key_source: process.env.PAYMATE_PARTNER_PRIVATE_KEY
-        ? 'PAYMATE_PARTNER_PRIVATE_KEY env'
-        : process.env.PAYMATE_PARTNER_PRIVATE_KEY_PATH || 'ssl-pg-partner/partner_private.pem file',
+      partner_key_source: config.partnerPrivateKeySource,
+      partner_key_b64_length: process.env.PAYMATE_PARTNER_PRIVATE_KEY_B64
+        ? process.env.PAYMATE_PARTNER_PRIVATE_KEY_B64.replace(/\s+/g, '').length
+        : null,
     };
 
     const partnerPublic = crypto.createPublicKey(config.partnerPrivateKey);
@@ -185,6 +186,16 @@ module.exports = async function handler(req, res) {
     report.checks.overall_ok = false;
     report.error = err.message;
     report.interpretation.push('Local configuration or crypto setup failed before/during PayMate call.');
+    if (
+      err.message.includes('bad base64 decode') ||
+      err.message.includes('no start line')
+    ) {
+      report.interpretation.push(
+        'Hostinger often corrupts multi-line PEM in PAYMATE_PARTNER_PRIVATE_KEY. ' +
+          'Delete that env var, run `node scripts/print-paymate-private-key-env.js` locally, ' +
+          'and set PAYMATE_PARTNER_PRIVATE_KEY_B64 to the single base64 line instead.'
+      );
+    }
     return res.status(500).json(report);
   }
 };
