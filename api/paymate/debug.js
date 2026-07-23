@@ -1,4 +1,7 @@
 const crypto = require('crypto');
+const https = require('https');
+const dns = require('dns');
+const { promisify } = require('util');
 const { encryptRequest, decryptPayload } = require('../lib/paymate-crypto');
 const { getPaymateConfig } = require('../lib/paymate-config');
 const {
@@ -7,6 +10,40 @@ const {
   isSuccessPayload,
   parsePayMateResponse,
 } = require('../lib/paymate-client');
+
+function httpsPostIPv4(urlStr, headers, body) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlStr);
+    const options = {
+      hostname: url.hostname,
+      port: 443,
+      path: url.pathname,
+      method: 'POST',
+      headers: { ...headers, 'Content-Length': Buffer.byteLength(body) },
+      family: 4,
+      timeout: 10000,
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        const connInfo = {
+          localAddress: req.socket?.localAddress,
+          localPort: req.socket?.localPort,
+          remoteAddress: req.socket?.remoteAddress,
+          remoteFamily: req.socket?.remoteFamily,
+        };
+        let parsed;
+        try { parsed = JSON.parse(data); } catch { parsed = { raw: data.slice(0, 300) }; }
+        resolve({ status: res.statusCode, headers: res.headers, body: parsed, connection: connInfo });
+      });
+    });
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
 
 function maskId(value) {
   if (!value || value.length < 8) return value;
@@ -256,15 +293,41 @@ module.exports = async function handler(req, res) {
     }
     // #endregion
 
-    // #region agent log — H5: Try DNS resolution of paymate.in
+    // #region agent log — H6: Full DNS check (A + AAAA records) for paymate.in
+    const resolve4 = promisify(dns.resolve4);
+    const resolve6 = promisify(dns.resolve6);
+    const dnsResults = {};
+    try { dnsResults.A = await resolve4('paymate.in'); } catch (e) { dnsResults.A_error = e.message; }
+    try { dnsResults.AAAA = await resolve6('paymate.in'); } catch (e) { dnsResults.AAAA_error = e.message; }
+    report.checks.paymate_dns = {
+      ...dnsResults,
+      has_ipv6: Boolean(dnsResults.AAAA && dnsResults.AAAA.length > 0),
+      hypothesis: 'H6: If paymate.in has AAAA records, Node.js may connect via IPv6',
+    };
+    // #endregion
+
+    // #region agent log — H1/H6: Force IPv4 connection to PayMate
+    const ipv4Headers = {
+      'Content-Type': 'application/json',
+      MerchantId: config.merchantId,
+      TerminalId: config.terminalId,
+      BusinessXpressID: config.businessXpressId,
+    };
     try {
-      const dns = require('dns');
-      const { promisify } = require('util');
-      const resolve4 = promisify(dns.resolve4);
-      const paymateIps = await resolve4('paymate.in');
-      report.checks.paymate_dns = { ok: true, ips: paymateIps };
+      const t0 = Date.now();
+      const ipv4Result = await httpsPostIPv4(config.endpoint, ipv4Headers, jsonBody);
+      report.forced_ipv4_call = {
+        hypothesis: 'H1/H6: Force IPv4 (family:4) to ensure PayMate sees 217.21.90.91',
+        duration_ms: Date.now() - t0,
+        connection: ipv4Result.connection,
+        http_status: ipv4Result.status,
+        response_body: ipv4Result.body,
+        status_code: ipv4Result.body?.StatusCode || null,
+        description: ipv4Result.body?.Description || null,
+        different_from_fetch: ipv4Result.body?.StatusCode !== '105',
+      };
     } catch (err) {
-      report.checks.paymate_dns = { ok: false, error: err.message };
+      report.forced_ipv4_call = { error: err.message };
     }
     // #endregion
 
@@ -289,6 +352,14 @@ module.exports = async function handler(req, res) {
     };
 
     const anyDifferent = report.variation_results.filter((v) => v.changed);
+    const ipv4Different = report.forced_ipv4_call?.different_from_fetch;
+
+    if (ipv4Different) {
+      report.interpretation.push(
+        `BREAKTHROUGH: Forcing IPv4 got StatusCode ${report.forced_ipv4_call.status_code} instead of 105! The issue is IPv6. Fix: force all PayMate calls to use IPv4.`
+      );
+    }
+
     if (anyDifferent.length > 0) {
       report.interpretation.push(
         `BREAKTHROUGH: ${anyDifferent.length} variation(s) got a DIFFERENT response: ${anyDifferent.map((v) => v.id + '=' + v.status_code).join(', ')}`
