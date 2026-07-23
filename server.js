@@ -7,6 +7,7 @@ const contact = require('./api/contact');
 const paymateCreateOrder = require('./api/paymate/create-order');
 const paymateCallback = require('./api/paymate/callback');
 const paymateStatus = require('./api/paymate/status');
+const paymateDebugIp = require('./api/paymate/debug-ip');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,7 +25,8 @@ app.post('/api/place-cod-order', apiRoute(placeCodOrder));
 app.post('/api/contact', apiRoute(contact));
 app.post('/api/paymate/create-order', apiRoute(paymateCreateOrder));
 app.post('/api/paymate/callback', apiRoute(paymateCallback));
-app.get('/api/paymate/status', apiRoute(paymateStatus));
+app.get('/api/paymate/debug-ip', apiRoute(paymateDebugIp));
+app.options('/api/paymate/debug-ip', apiRoute(paymateDebugIp));
 app.post('/api/paymate/status', apiRoute(paymateStatus));
 
 app.options('/api/create-order', apiRoute(createOrder));

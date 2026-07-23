@@ -51,8 +51,8 @@ module.exports = async function handler(req, res) {
             GST: '',
           },
           PaymentMethod: {
-            PaymentMode: 'ALL',
-            PaymentType: 'Checkout',
+            PaymentMode: 'UPI/CreditCard/DebitCard/NetBanking',
+            PaymentType: 'VPA/QRCode/Card/Banking',
           },
           SplitMDR: {
             BuyerCharges: '0',
