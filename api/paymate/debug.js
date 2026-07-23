@@ -144,24 +144,31 @@ function maskId(value) {
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
 }
 
-function buildSamplePayload(orderId, methodKey = 'upi') {
+function buildSamplePayload(orderId, options = {}) {
+  const methodKey = options.methodKey || 'upi';
   const paymateMethod = resolvePaymateMethod(methodKey);
+  const paymentMode = options.PaymentMode || paymateMethod.PaymentMode;
+  const paymentType = options.PaymentType || paymateMethod.PaymentType;
+  const transactionDetails = {
+    OrderID: orderId,
+    CompanyName: 'Fomino Product Hub Pvt Ltd',
+    ReferenceCode: 'FOMINO01',
+    ContactXpressID: '',
+    ReceipentMobileNo: '9876543210',
+    RecipentEmailAddress: 'debug@fominomart.in',
+    UDF1: [],
+    UDF2: [],
+    UDF3: [],
+    Remarks: 'PayMate connectivity test',
+  };
+  if (options.includeReturnUrl !== false) {
+    transactionDetails.ReturnURL =
+      'https://fominomart.in/paymate-return.html?orderId=' + orderId;
+  }
   return {
     CollectionDetails: [
       {
-        TransactionDetails: {
-          OrderID: orderId,
-          CompanyName: 'Fomino Product Hub Pvt Ltd',
-          ReferenceCode: 'FOMINO01',
-          ContactXpressID: '',
-          ReceipentMobileNo: '9876543210',
-          RecipentEmailAddress: 'debug@fominomart.in',
-          UDF1: [],
-          UDF2: [],
-          UDF3: [],
-          Remarks: 'PayMate connectivity test',
-          ReturnURL: 'https://fominomart.in/paymate-return.html?orderId=' + orderId,
-        },
+        TransactionDetails: transactionDetails,
         INVOICE: {
           InvoiceNumber: orderId,
           InvoiceStartDate: '',
@@ -171,8 +178,8 @@ function buildSamplePayload(orderId, methodKey = 'upi') {
           GST: '',
         },
         PaymentMethod: {
-          PaymentMode: paymateMethod.PaymentMode,
-          PaymentType: paymateMethod.PaymentType,
+          PaymentMode: paymentMode,
+          PaymentType: paymentType,
         },
         SplitMDR: {
           BuyerCharges: '0',
@@ -180,6 +187,36 @@ function buildSamplePayload(orderId, methodKey = 'upi') {
         },
       },
     ],
+  };
+}
+
+async function postPaymateVariant(config, baseHeaders, variantPayload) {
+  const encryptedBody = encryptRequest(variantPayload, config.paymatePublicCert, config.iv);
+  const jsonBody = JSON.stringify(encryptedBody);
+  const t0 = Date.now();
+  const r = await fetch(config.endpoint, {
+    method: 'POST',
+    headers: baseHeaders,
+    body: jsonBody,
+    signal: AbortSignal.timeout(10000),
+  });
+  const txt = await r.text();
+  let body;
+  try {
+    body = JSON.parse(txt);
+  } catch {
+    body = { raw_preview: txt.slice(0, 300) };
+  }
+  const analyzed = analyzePaymateBody(body, config);
+  return {
+    duration_ms: Date.now() - t0,
+    http_status: r.status,
+    plain_text_payload: variantPayload,
+    parsed_response: analyzed.parsed,
+    status_code: analyzed.status_code,
+    description: analyzed.description,
+    payment_url: analyzed.payment_url,
+    success: analyzed.success,
   };
 }
 
@@ -387,6 +424,46 @@ module.exports = async function handler(req, res) {
     }
     // #endregion
 
+    // #region agent log — H8-H12: UPI PaymentType variants
+    const upiVariants = [
+      { id: 'upi_vpa', hypothesis: 'H8: UPI + VPA (current)', PaymentMode: 'UPI', PaymentType: 'VPA' },
+      { id: 'upi_qrcode', hypothesis: 'H9: UPI + QRCode', PaymentMode: 'UPI', PaymentType: 'QRCode' },
+      { id: 'upi_vpa_qrcode', hypothesis: 'H10: UPI + VPA/QRCode (doc table)', PaymentMode: 'UPI', PaymentType: 'VPA/QRCode' },
+      { id: 'upi_intent', hypothesis: 'H11: UPI + Intent (mobile intent flow)', PaymentMode: 'UPI', PaymentType: 'Intent' },
+      { id: 'upi_vpa_no_return', hypothesis: 'H12: UPI+VPA without ReturnURL', PaymentMode: 'UPI', PaymentType: 'VPA', includeReturnUrl: false },
+    ];
+    report.upi_payment_variations = [];
+    for (const variant of upiVariants) {
+      const variantOrderId = `DBG${Date.now()}${variant.id.slice(-3)}`.slice(0, 20);
+      try {
+        const variantPayload = buildSamplePayload(variantOrderId, variant);
+        const result = await postPaymateVariant(config, baseHeaders, variantPayload);
+        report.upi_payment_variations.push({
+          id: variant.id,
+          hypothesis: variant.hypothesis,
+          payment_mode: variant.PaymentMode,
+          payment_type: variant.PaymentType,
+          ...result,
+        });
+      } catch (err) {
+        report.upi_payment_variations.push({
+          id: variant.id,
+          hypothesis: variant.hypothesis,
+          error: err.message,
+        });
+      }
+    }
+    const upiSuccess = report.upi_payment_variations.find((v) => v.success);
+    if (upiSuccess) {
+      report.interpretation_upi_winner = {
+        id: upiSuccess.id,
+        payment_mode: upiSuccess.payment_mode,
+        payment_type: upiSuccess.payment_type,
+        payment_url: upiSuccess.payment_url,
+      };
+    }
+    // #endregion
+
     // #region agent log — H6: Full DNS check (A + AAAA records) for paymate.in
     const resolve4 = promisify(dns.resolve4);
     const resolve6 = promisify(dns.resolve6);
@@ -514,12 +591,25 @@ module.exports = async function handler(req, res) {
           report.interpretation.push(`Payment URL received: ${primaryResult.payment_url}`);
         }
       } else if (primaryResult.status_code === '178') {
-        report.interpretation.push(
-          'PayMate accepted the connection (105 is fixed) but rejected request fields: Invalid Payment Mode. Ask PayMate to enable Checkout payment modes (UPI/Card/NetBanking) for merchant KIJY000002.'
-        );
+        const winner = report.interpretation_upi_winner;
+        if (winner) {
+          report.interpretation.push(
+            `UPI variant ${winner.id} succeeded with PaymentMode=${winner.payment_mode}, PaymentType=${winner.payment_type}.`
+          );
+        } else {
+          report.interpretation.push(
+            'PayMate still returns 178 Invalid Payment Mode for UPI+VPA. UPI may be enabled for Intent only, not Hosted Checkout — confirm with PayMate for merchant KIJY000002 / Terminal B24D5B35.'
+          );
+        }
         report.interpretation.push(
           `Detail: ${primaryResult.parsed_response?.DetailedSummary?.[0]?.StatusMessage || primaryResult.description}`
         );
+        const variantSummary = (report.upi_payment_variations || [])
+          .map((v) => `${v.id}=${v.status_code || 'err'}`)
+          .join(', ');
+        if (variantSummary) {
+          report.interpretation.push(`UPI type tests: ${variantSummary}`);
+        }
       } else {
         report.interpretation.push(
           `PayMate returned StatusCode ${primaryResult.status_code}: ${primaryResult.description || 'see parsed_response'}`

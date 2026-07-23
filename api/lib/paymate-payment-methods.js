@@ -2,7 +2,7 @@ const PAYMATE_METHODS = {
   upi: {
     label: 'UPI',
     PaymentMode: 'UPI',
-    PaymentType: 'VPA',
+    PaymentType: 'VPA/QRCode',
   },
   debit: {
     label: 'Debit Card',
