@@ -45,6 +45,34 @@ function httpsPostIPv4(urlStr, headers, body) {
   });
 }
 
+function httpsGetIPv4(urlStr) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlStr);
+    const options = {
+      hostname: url.hostname,
+      port: 443,
+      path: url.pathname + url.search,
+      method: 'GET',
+      family: 4,
+      timeout: 5000,
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        resolve({
+          body: data.trim(),
+          localAddress: req.socket?.localAddress,
+          remoteAddress: req.socket?.remoteAddress,
+        });
+      });
+    });
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 function maskId(value) {
   if (!value || value.length < 8) return value;
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
@@ -152,12 +180,11 @@ module.exports = async function handler(req, res) {
       encrypted_data_length: paymateEncrypt.EncryptedData?.length || 0,
     };
 
-    // #region agent log — H1: Check IP via multiple services
+    // #region agent log — H1: Check IP via multiple services + https module
     const ipChecks = {};
     const ipServices = [
-      { name: 'ipify', url: 'https://api.ipify.org?format=json', extract: (d) => d.ip },
-      { name: 'ifconfig', url: 'https://ifconfig.me/ip', extract: (d) => d.trim() },
-      { name: 'httpbin', url: 'https://httpbin.org/ip', extract: (d) => d.origin },
+      { name: 'ipify_fetch', url: 'https://api.ipify.org?format=json', extract: (d) => d.ip },
+      { name: 'ifconfig_fetch', url: 'https://ifconfig.me/ip', extract: (d) => d.trim() },
     ];
     for (const svc of ipServices) {
       try {
@@ -165,15 +192,28 @@ module.exports = async function handler(req, res) {
         const txt = await r.text();
         let data;
         try { data = JSON.parse(txt); } catch { data = txt; }
-        ipChecks[svc.name] = { ip: typeof data === 'string' ? svc.extract(data) : svc.extract(data), raw: typeof data === 'string' ? data.trim().slice(0, 50) : data };
+        ipChecks[svc.name] = { ip: typeof data === 'string' ? svc.extract(data) : svc.extract(data), method: 'fetch/undici' };
       } catch (err) {
         ipChecks[svc.name] = { error: err.message };
       }
     }
-    const detectedIps = [...new Set(Object.values(ipChecks).map((c) => c.ip).filter(Boolean))];
+    try {
+      const r = await httpsGetIPv4('https://api.ipify.org?format=text');
+      ipChecks.ipify_https_ipv4 = { ip: r.body, localAddress: r.localAddress, method: 'https module (family:4)' };
+    } catch (err) {
+      ipChecks.ipify_https_ipv4 = { error: err.message };
+    }
+    try {
+      const r = await httpsGetIPv4('https://ifconfig.me/ip');
+      ipChecks.ifconfig_https_ipv4 = { ip: r.body, localAddress: r.localAddress, method: 'https module (family:4)' };
+    } catch (err) {
+      ipChecks.ifconfig_https_ipv4 = { error: err.message };
+    }
+    const allIps = [...new Set(Object.values(ipChecks).map((c) => c.ip).filter(Boolean))];
+    const detectedIps = allIps;
     report.checks.outbound_ip = {
-      ok: detectedIps.length === 1,
-      detected_ips: detectedIps,
+      ok: allIps.length === 1,
+      all_detected_ips: allIps,
       services: ipChecks,
       consistent: detectedIps.length === 1,
       hypothesis: 'H1: If IPs differ, PayMate may see a different IP than ipify reports',
