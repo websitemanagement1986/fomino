@@ -264,73 +264,54 @@ module.exports = async function handler(req, res) {
     const encryptedBody = encryptRequest(payload, config.paymatePublicCert, config.iv);
     const jsonBody = JSON.stringify(encryptedBody);
 
+    const baseHeaders = {
+      'Content-Type': 'application/json',
+      MerchantId: config.merchantId,
+      TerminalId: config.terminalId,
+      BusinessXpressID: config.businessXpressId,
+    };
+
     const variations = [
       {
         id: 'original',
-        hypothesis: 'H2: Current header casing',
+        hypothesis: 'Baseline: current headers',
         url: config.endpoint,
-        headers: {
-          'Content-Type': 'application/json',
-          MerchantId: config.merchantId,
-          TerminalId: config.terminalId,
-          BusinessXpressID: config.businessXpressId,
-        },
+        headers: { ...baseHeaders },
       },
       {
-        id: 'lowercase_bxid',
-        hypothesis: 'H2: BusinessXpressId instead of BusinessXpressID',
+        id: 'with_origin',
+        hypothesis: 'H10/H11: Add Origin header (domain validation)',
         url: config.endpoint,
-        headers: {
-          'Content-Type': 'application/json',
-          MerchantId: config.merchantId,
-          TerminalId: config.terminalId,
-          BusinessXpressId: config.businessXpressId,
-        },
+        headers: { ...baseHeaders, Origin: config.siteUrl },
       },
       {
-        id: 'all_lowercase',
-        hypothesis: 'H2: All lowercase header names',
+        id: 'with_referer',
+        hypothesis: 'H11: Add Referer header',
         url: config.endpoint,
-        headers: {
-          'content-type': 'application/json',
-          merchantid: config.merchantId,
-          terminalid: config.terminalId,
-          businessxpressid: config.businessXpressId,
-        },
+        headers: { ...baseHeaders, Referer: config.siteUrl + '/' },
       },
       {
-        id: 'with_useragent',
-        hypothesis: 'H3: Adding User-Agent header',
+        id: 'with_origin_and_referer',
+        hypothesis: 'H11: Both Origin + Referer',
         url: config.endpoint,
         headers: {
-          'Content-Type': 'application/json',
+          ...baseHeaders,
+          Origin: config.siteUrl,
+          Referer: config.siteUrl + '/checkout.html',
           'User-Agent': 'FominoPayMate/1.0',
-          MerchantId: config.merchantId,
-          TerminalId: config.terminalId,
-          BusinessXpressID: config.businessXpressId,
         },
       },
       {
-        id: 'uat_endpoint',
-        hypothesis: 'H4: Try UAT/sandbox endpoint',
-        url: config.endpoint.replace('paymate.in', 'uat.paymate.in'),
-        headers: {
-          'Content-Type': 'application/json',
-          MerchantId: config.merchantId,
-          TerminalId: config.terminalId,
-          BusinessXpressID: config.businessXpressId,
-        },
+        id: 'with_host',
+        hypothesis: 'H10: Explicit Host header matching PayMate domain',
+        url: config.endpoint,
+        headers: { ...baseHeaders, Host: 'paymate.in' },
       },
       {
-        id: 'sandbox_endpoint',
-        hypothesis: 'H4: Try sandbox endpoint',
-        url: config.endpoint.replace('paymate.in', 'sandbox.paymate.in'),
-        headers: {
-          'Content-Type': 'application/json',
-          MerchantId: config.merchantId,
-          TerminalId: config.terminalId,
-          BusinessXpressID: config.businessXpressId,
-        },
+        id: 'uat_co_in',
+        hypothesis: 'H4b: Try uat.paymate.co.in (from PayMate docs)',
+        url: 'https://uat.paymate.co.in/PaymatePartnerStack/api/v2/CollectPayments',
+        headers: { ...baseHeaders },
       },
     ];
 
