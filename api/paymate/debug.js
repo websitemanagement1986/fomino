@@ -149,16 +149,28 @@ module.exports = async function handler(req, res) {
       parsed = { parse_error: err.message };
     }
 
+    const requestHeaders = {
+      'Content-Type': 'application/json',
+      MerchantId: config.merchantId,
+      TerminalId: config.terminalId,
+      BusinessXpressID: config.businessXpressId,
+    };
+
     report.paymate_call = {
       duration_ms: Date.now() - started,
-      http_status: response.status,
-      request_headers: {
-        MerchantId: maskId(config.merchantId),
-        TerminalId: maskId(config.terminalId),
-        BusinessXpressID: config.businessXpressId,
+      request: {
+        method: 'POST',
+        url: config.endpoint,
+        headers: requestHeaders,
+        body: encryptedBody,
+        plain_text_payload: payload,
+      },
+      response: {
+        http_status: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: rawJson,
       },
       sample_order_id: orderId,
-      raw_response: rawJson,
       parsed_response: parsed,
       status_code: parsed?.StatusCode || rawJson?.StatusCode || null,
       description: extractPaymateMessage(parsed) || extractPaymateMessage(rawJson),
