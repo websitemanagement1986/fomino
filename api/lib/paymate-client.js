@@ -10,11 +10,14 @@ function getDetailedSummary(payload) {
 
 function extractPaymateMessage(payload) {
   const summary = getDetailedSummary(payload);
+  const detail = summary?.StatusMessage || summary?.Message;
+  const generic = payload?.Description || payload?.ErrorDescription;
+  if (detail && generic && /invalid input/i.test(generic)) {
+    return detail;
+  }
   return (
-    payload?.Description ||
-    payload?.ErrorDescription ||
-    summary?.StatusMessage ||
-    summary?.Message ||
+    generic ||
+    detail ||
     payload?.message ||
     payload?.error ||
     null
@@ -90,7 +93,10 @@ async function callPayMate(plainPayload) {
 
   const decrypted = parsePayMateResponse(encryptedResponse, config);
   if (!isSuccessPayload(decrypted)) {
-    throw new Error(extractPaymateMessage(decrypted) || 'PayMate rejected the payment request');
+    const message = extractPaymateMessage(decrypted) || 'PayMate rejected the payment request';
+    const err = new Error(message);
+    err.paymateDetails = decrypted;
+    throw err;
   }
 
   return { decrypted, config };

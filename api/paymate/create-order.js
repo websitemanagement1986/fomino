@@ -1,5 +1,10 @@
 const { validateCart } = require('../lib/products');
-const { callPayMate, extractPaymentUrl, isSuccessPayload } = require('../lib/paymate-client');
+const {
+  callPayMate,
+  extractPaymentUrl,
+  extractPaymateMessage,
+  isSuccessPayload,
+} = require('../lib/paymate-client');
 const { getPaymateConfig } = require('../lib/paymate-config');
 const { savePendingOrder } = require('../lib/paymate-orders');
 
@@ -56,7 +61,7 @@ module.exports = async function handler(req, res) {
           },
           SplitMDR: {
             BuyerCharges: '0',
-            SupplierCharges: String(total),
+            SupplierCharges: '100',
           },
         },
       ],
@@ -73,14 +78,9 @@ module.exports = async function handler(req, res) {
 
     const { decrypted } = await callPayMate(payload);
     if (!isSuccessPayload(decrypted)) {
-      const message =
-        decrypted?.Description ||
-        decrypted?.ErrorDescription ||
-        decrypted?.DetailedSummary?.Message ||
-        'PayMate rejected the payment request';
+      const message = extractPaymateMessage(decrypted) || 'PayMate rejected the payment request';
       return res.status(502).json({ error: message, details: decrypted });
     }
-
     const paymentUrl = extractPaymentUrl(decrypted);
     if (!paymentUrl) {
       return res.status(502).json({
@@ -99,6 +99,9 @@ module.exports = async function handler(req, res) {
       amount: total,
     });
   } catch (err) {
+    if (err.paymateDetails) {
+      return res.status(502).json({ error: err.message, details: err.paymateDetails });
+    }
     return res.status(400).json({ error: err.message });
   }
 };

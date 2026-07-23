@@ -191,7 +191,15 @@ async function initiatePayment() {
 
     window.location.href = result.payment_url;
   } catch (err) {
-    alert(err.message + '\n\nNote: PayMate API requires server credentials configured on Hostinger.');
+    const isPaymentMode = /payment mode/i.test(err.message);
+    const isConfigError = /credentials|private key|not configured|base64/i.test(err.message);
+    let note = '';
+    if (isPaymentMode) {
+      note = '\n\nOnline payment is being activated with PayMate. Please use Cash on Delivery for now.';
+    } else if (isConfigError) {
+      note = '\n\nNote: PayMate server credentials must be configured on Hostinger.';
+    }
+    alert(err.message + note);
     if (btn) { btn.disabled = false; updateCheckoutButton(); }
   }
 }
