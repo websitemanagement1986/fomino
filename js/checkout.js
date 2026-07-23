@@ -100,7 +100,7 @@ function renderCheckoutSummary() {
     <div class="summary-row total"><span>Total</span><span>₹${total.toLocaleString('en-IN')}</span></div>
     <p class="payment-note">${method === 'cod'
       ? '💵 Pay cash when your order is delivered'
-      : '🔒 Secure payment via Razorpay — UPI, Cards & Net Banking'}</p>`;
+      : '🔒 Secure payment via PayMate — UPI, Cards & Net Banking'}</p>`;
 }
 
 function saveOrderAndRedirect(order) {
@@ -164,56 +164,24 @@ async function initiatePayment() {
 
   const cart = getCart();
   try {
-    const res = await fetch('/api/create-order', {
+    const res = await fetch('/api/paymate/create-order', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cart, customer: data }),
     });
     const result = await res.json();
-    if (!res.ok) throw new Error(result.error || 'Failed to create order');
+    if (!res.ok) throw new Error(result.error || 'Failed to create payment');
 
-    const options = {
-      key: result.key_id,
+    sessionStorage.setItem('fomino_paymate_pending', JSON.stringify({
+      orderId: result.order_id,
       amount: result.amount,
-      currency: result.currency,
-      name: 'Fomino',
-      description: 'Grocery Order',
-      order_id: result.order_id,
-      prefill: { name: data.name, email: data.email, contact: data.phone },
-      theme: { color: '#689f38' },
-      handler: async function (response) {
-        try {
-          const verifyRes = await fetch('/api/verify-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...response, customer: data, cart }),
-          });
-          const verifyData = await verifyRes.json();
-          if (!verifyRes.ok) throw new Error(verifyData.error || 'Payment verification failed');
+      customer: data,
+      items: getCartDetails(),
+    }));
 
-          saveOrderAndRedirect({
-            transactionId: verifyData.transaction_id,
-            amount: result.amount / 100,
-            paymentMethod: 'online',
-            customer: data,
-            items: getCartDetails(),
-          });
-        } catch (err) {
-          alert('Payment verification failed: ' + err.message);
-        }
-      },
-      modal: {
-        ondismiss: function () {
-          if (btn) { btn.disabled = false; btn.textContent = 'Pay Now'; }
-        },
-      },
-    };
-
-    const rzp = new Razorpay(options);
-    rzp.on('payment.failed', () => { window.location.href = 'cancel.html'; });
-    rzp.open();
+    window.location.href = result.payment_url;
   } catch (err) {
-    alert(err.message + '\n\nNote: Payment API requires server with Razorpay keys configured.');
+    alert(err.message + '\n\nNote: PayMate API requires server credentials configured on Hostinger.');
     if (btn) { btn.disabled = false; updateCheckoutButton(); }
   }
 }

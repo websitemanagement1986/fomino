@@ -23,7 +23,7 @@ async function sendViaResend({ to, subject, html }) {
   return res.json();
 }
 
-function buildOrderHtml({ transactionId, orderId, customer, items, subtotal, deliveryCharge, total, paymentMethod, isAdmin }) {
+function buildOrderHtml({ transactionId, orderId, customer, items, subtotal, deliveryCharge, total, paymentMethod, paymentProvider, isAdmin }) {
   const itemRows = items
     .map((i) => `<tr><td>${i.name}</td><td>${i.qty}</td><td>₹${i.lineTotal.toLocaleString('en-IN')}</td></tr>`)
     .join('');
@@ -32,7 +32,11 @@ function buildOrderHtml({ transactionId, orderId, customer, items, subtotal, del
     ? `<tr><td colspan="2" style="padding:8px;">Delivery</td><td style="padding:8px;text-align:right;">₹${deliveryCharge.toLocaleString('en-IN')}</td></tr>`
     : `<tr><td colspan="2" style="padding:8px;">Delivery</td><td style="padding:8px;text-align:right;">FREE</td></tr>`;
 
-  const payLabel = paymentMethod === 'cod' ? 'Cash on Delivery (Pay on delivery)' : 'Paid Online via Razorpay';
+  const payLabel = paymentMethod === 'cod'
+    ? 'Cash on Delivery (Pay on delivery)'
+    : paymentProvider === 'paymate'
+      ? 'Paid Online via PayMate'
+      : 'Paid Online';
   const title = isAdmin ? 'New Grocery Order' : 'Order Confirmation — Fomino';
   const greeting = isAdmin
     ? `<p>A new order has been placed on Fomino.</p>`
@@ -66,10 +70,10 @@ function buildOrderHtml({ transactionId, orderId, customer, items, subtotal, del
     </div>`;
 }
 
-async function sendOrderEmails({ transactionId, orderId, customer, items, subtotal, deliveryCharge, total, paymentMethod = 'online' }) {
+async function sendOrderEmails({ transactionId, orderId, customer, items, subtotal, deliveryCharge, total, paymentMethod = 'online', paymentProvider = 'paymate' }) {
   const adminEmail = process.env.ADMIN_EMAIL;
-  const buyerHtml = buildOrderHtml({ transactionId, orderId, customer, items, subtotal, deliveryCharge, total, paymentMethod, isAdmin: false });
-  const adminHtml = buildOrderHtml({ transactionId, orderId, customer, items, subtotal, deliveryCharge, total, paymentMethod, isAdmin: true });
+  const buyerHtml = buildOrderHtml({ transactionId, orderId, customer, items, subtotal, deliveryCharge, total, paymentMethod, paymentProvider, isAdmin: false });
+  const adminHtml = buildOrderHtml({ transactionId, orderId, customer, items, subtotal, deliveryCharge, total, paymentMethod, paymentProvider, isAdmin: true });
 
   await sendViaResend({
     to: customer.email,

@@ -6,7 +6,7 @@ Fresh fruits, vegetables and groceries delivered to your doorstep. Built by **Fo
 
 - 8 categories, 47+ products with real photos
 - Guest checkout (no login)
-- Online payment via Razorpay (UPI, cards, net banking)
+- Online payment via PayMate (UPI, cards, net banking)
 - Cash on Delivery (COD)
 - Order confirmation emails via Resend
 
@@ -15,7 +15,7 @@ Fresh fruits, vegetables and groceries delivered to your doorstep. Built by **Fo
 ```bash
 cd C:\Repositiries\Fomino
 npm install
-cp .env.example .env   # add your Razorpay & Resend keys
+cp .env.example .env   # add PayMate & Resend keys
 npm run download-images
 npm start
 ```
@@ -26,8 +26,11 @@ Open http://localhost:3000
 
 | Variable | Purpose |
 |----------|---------|
-| `RAZORPAY_KEY_ID` | Razorpay public key |
-| `RAZORPAY_KEY_SECRET` | Razorpay secret |
+| `PAYMATE_MERCHANT_ID` | PayMate merchant ID |
+| `PAYMATE_TERMINAL_ID` | PayMate terminal ID |
+| `PAYMATE_BUSINESS_XPRESS_ID` | PayMate business Xpress ID |
+| `PAYMATE_IV` | PayMate encryption IV |
+| `SITE_URL` | Public site URL (for return/callback links) |
 | `RESEND_API_KEY` | Email sending (optional) |
 | `FROM_EMAIL` | Sender email (default: orders@fominomart.in) |
 | `ADMIN_EMAIL` | Order & contact notifications |
