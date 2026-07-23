@@ -10,6 +10,7 @@ const {
   isSuccessPayload,
   parsePayMateResponse,
 } = require('../lib/paymate-client');
+const { resolvePaymateMethod } = require('../lib/paymate-payment-methods');
 
 function httpsPostIPv4(urlStr, headers, body) {
   return new Promise((resolve, reject) => {
@@ -143,7 +144,8 @@ function maskId(value) {
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
 }
 
-function buildSamplePayload(orderId) {
+function buildSamplePayload(orderId, methodKey = 'upi') {
+  const paymateMethod = resolvePaymateMethod(methodKey);
   return {
     CollectionDetails: [
       {
@@ -169,8 +171,8 @@ function buildSamplePayload(orderId) {
           GST: '',
         },
         PaymentMethod: {
-          PaymentMode: 'UPI/CreditCard/DebitCard/NetBanking',
-          PaymentType: 'VPA/QRCode/Card/Banking',
+          PaymentMode: paymateMethod.PaymentMode,
+          PaymentType: paymateMethod.PaymentType,
         },
         SplitMDR: {
           BuyerCharges: '0',

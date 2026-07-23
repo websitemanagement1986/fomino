@@ -75,13 +75,21 @@ function getCheckoutData() {
 
 function getPaymentMethod() {
   const selected = document.querySelector('input[name="payment"]:checked');
-  return selected?.value || 'online';
+  return selected?.value || 'upi';
 }
+
+const PAYMENT_LABELS = {
+  upi: '📱 Pay via UPI',
+  debit: '💳 Pay with Debit Card',
+  netbanking: '🏦 Pay via Net Banking',
+  cod: 'Place Order (COD)',
+};
 
 function updateCheckoutButton() {
   const btn = document.getElementById('pay-btn');
   if (!btn) return;
-  btn.textContent = getPaymentMethod() === 'cod' ? 'Place Order (COD)' : 'Pay Now';
+  const method = getPaymentMethod();
+  btn.textContent = PAYMENT_LABELS[method] || 'Pay Now';
 }
 
 function renderCheckoutSummary() {
@@ -92,6 +100,11 @@ function renderCheckoutSummary() {
   const delivery = getDeliveryCharge();
   const total = getOrderTotal();
   const method = getPaymentMethod();
+  const onlineNotes = {
+    upi: '🔒 Secure UPI payment via PayMate',
+    debit: '🔒 Secure debit card payment via PayMate',
+    netbanking: '🔒 Secure net banking payment via PayMate',
+  };
   el.innerHTML = `
     <h3>Order Summary</h3>
     ${items.map((i) => `<div class="summary-row"><span>${i.name} × ${i.qty}</span><span>₹${i.lineTotal.toLocaleString('en-IN')}</span></div>`).join('')}
@@ -100,7 +113,7 @@ function renderCheckoutSummary() {
     <div class="summary-row total"><span>Total</span><span>₹${total.toLocaleString('en-IN')}</span></div>
     <p class="payment-note">${method === 'cod'
       ? '💵 Pay cash when your order is delivered'
-      : '🔒 Secure payment via PayMate — UPI, Cards & Net Banking'}</p>`;
+      : onlineNotes[method] || '🔒 Secure payment via PayMate'}</p>`;
 }
 
 function saveOrderAndRedirect(order) {
@@ -163,11 +176,12 @@ async function initiatePayment() {
   if (btn) { btn.disabled = true; btn.textContent = 'Processing...'; }
 
   const cart = getCart();
+  const paymentMethod = getPaymentMethod();
   try {
     const res = await fetch('/api/paymate/create-order', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cart, customer: data }),
+      body: JSON.stringify({ cart, customer: data, payment_method: paymentMethod }),
     });
     const rawText = await res.text();
     let result;
@@ -187,6 +201,7 @@ async function initiatePayment() {
       amount: result.amount,
       customer: data,
       items: getCartDetails(),
+      paymentMethod,
     }));
 
     window.location.href = result.payment_url;

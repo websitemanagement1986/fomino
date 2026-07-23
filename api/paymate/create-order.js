@@ -6,8 +6,8 @@ const {
   isSuccessPayload,
 } = require('../lib/paymate-client');
 const { getPaymateConfig } = require('../lib/paymate-config');
+const { resolvePaymateMethod } = require('../lib/paymate-payment-methods');
 const { savePendingOrder } = require('../lib/paymate-orders');
-
 function buildOrderId() {
   return `FOM${Date.now()}`.slice(0, 20);
 }
@@ -21,15 +21,14 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { cart, customer } = req.body || {};
-    if (!customer?.name || !customer?.email || !customer?.phone) {
+    const { cart, customer, payment_method: paymentMethod } = req.body || {};    if (!customer?.name || !customer?.email || !customer?.phone) {
       return res.status(400).json({ error: 'Customer details are required' });
     }
 
     const { items, subtotal, deliveryCharge, total } = validateCart(cart);
     const config = getPaymateConfig();
-    const orderId = buildOrderId();
-    const returnUrl = `${config.siteUrl}/paymate-return.html?orderId=${encodeURIComponent(orderId)}`;
+    const paymateMethod = resolvePaymateMethod(paymentMethod);
+    const orderId = buildOrderId();    const returnUrl = `${config.siteUrl}/paymate-return.html?orderId=${encodeURIComponent(orderId)}`;
 
     const payload = {
       CollectionDetails: [
@@ -56,10 +55,9 @@ module.exports = async function handler(req, res) {
             GST: '',
           },
           PaymentMethod: {
-            PaymentMode: 'UPI/CreditCard/DebitCard/NetBanking',
-            PaymentType: 'VPA/QRCode/Card/Banking',
-          },
-          SplitMDR: {
+            PaymentMode: paymateMethod.PaymentMode,
+            PaymentType: paymateMethod.PaymentType,
+          },          SplitMDR: {
             BuyerCharges: '0',
             SupplierCharges: '100',
           },
@@ -74,8 +72,10 @@ module.exports = async function handler(req, res) {
       deliveryCharge,
       total,
       returnUrl,
+      paymentMethod: paymateMethod.key,
+      paymatePaymentMode: paymateMethod.PaymentMode,
+      paymatePaymentType: paymateMethod.PaymentType,
     });
-
     const { decrypted } = await callPayMate(payload);
     if (!isSuccessPayload(decrypted)) {
       const message = extractPaymateMessage(decrypted) || 'PayMate rejected the payment request';
@@ -97,8 +97,8 @@ module.exports = async function handler(req, res) {
         decrypted?.DetailedSummary?.TransactionRefNo ||
         null,
       amount: total,
-    });
-  } catch (err) {
+      payment_method: paymateMethod.key,
+    });  } catch (err) {
     if (err.paymateDetails) {
       return res.status(502).json({ error: err.message, details: err.paymateDetails });
     }
